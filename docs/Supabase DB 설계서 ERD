@@ -1,0 +1,211 @@
+Supabase DB 설계서 ERD
+이 스크립트는 Supabase SQL Editor에 바로 복사하여 실행하면 테이블 생성, 관계 설정, 트리거 설정까지 한 번에 완료되도록 작성되었습니다.
+
+[ERD] 통합 데이터베이스 관계도
+코드 스니펫
+
+erDiagram
+    users ||--|| PROFILES : "1:1 매핑 (Auth)"
+    PROFILES ||--o{ COURSES : "생성 (교사)"
+    PROFILES ||--o{ ENROLLMENTS : "수강 (학생)"
+    PROFILES ||--o{ STUDY_SETS : "생성 (교사/학생)"
+    PROFILES ||--o{ USER_STUDY_PROGRESS : "학습 기록"
+    PROFILES ||--o{ ASSIGNMENTS : "숙제 할당/수령"
+
+    COURSES {
+        date start_date "공식 시작일"
+        date end_date "공식 종료일"
+    }
+    COURSES ||--o{ ENROLLMENTS : "등록"
+    COURSES ||--o{ LIVE_CLASSES : "포함"
+
+    ENROLLMENTS {
+        timestamp start_date "접속 허용 시작"
+        timestamp end_date "접속 허용 종료"
+    }
+
+    LIVE_CLASSES {
+        string zep_link "수업별 링크"
+    }
+
+    STUDY_SETS {
+        jsonb content "오디오/이미지/비디오 포함"
+    }
+    STUDY_SETS ||--o{ USER_STUDY_PROGRESS : "진도 체크"
+    STUDY_SETS ||--o{ ASSIGNMENTS : "숙제 대상"
+[DDL] 통합 SQL 스크립트 (최종본)
+아래 내용을 Supabase 대시보드의 SQL Editor > New Query에 붙여넣고 Run을 누르세요.
+
+SQL
+
+-- [초기화] 기존 테이블이 있다면 삭제 (필요시 주석 해제하여 사용)
+-- drop table if exists public.weekly_rankings;
+-- drop table if exists public.assignments;
+-- drop table if exists public.user_study_progress;
+-- drop table if exists public.study_sets;
+-- drop table if exists public.live_classes;
+-- drop table if exists public.enrollments;
+-- drop table if exists public.courses;
+-- drop table if exists public.profiles;
+
+-- 1. PROFILES (사용자 프로필)
+-- Supabase Auth의 users 테이블과 연동됩니다.
+create table public.profiles (
+  id uuid references auth.users on delete cascade not null primary key,
+  email text not null,
+  role text default 'student' check (role in ('student', 'teacher', 'admin')),
+  nickname text,
+  avatar_url text, -- LMS 스프라이트 이미지 URL
+  level int default 1,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- [Trigger] 회원가입 시 자동으로 Profiles에도 데이터 생성
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email)
+  values (new.id, new.email);
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+
+-- 2. COURSES (강의 정보)
+-- 강의 상품으로서의 공식 스케줄을 관리합니다.
+create table public.courses (
+  id uuid default gen_random_uuid() primary key,
+  teacher_id uuid references public.profiles(id) not null,
+  title text not null,
+  description text,
+  price int default 0,
+  start_date date, -- [공식] 강의 시작일 (표시용)
+  end_date date,   -- [공식] 강의 종료일 (표시용)
+  is_active boolean default true,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+
+-- 3. ENROLLMENTS (수강 이력 및 권한)
+-- 학생 개개인의 실제 접속 권한 기간을 관리합니다.
+create table public.enrollments (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) not null,
+  course_id uuid references public.courses(id) not null,
+  start_date timestamp with time zone not null, -- [권한] 접속 허용 시작일
+  end_date timestamp with time zone not null,   -- [권한] 접속 차단일
+  payment_id text, -- PayPal Transaction ID
+  created_at timestamp with time zone default now()
+);
+
+
+-- 4. LIVE_CLASSES (라이브 수업 회차)
+-- 각 수업마다 다른 ZEP 링크를 가집니다.
+create table public.live_classes (
+  id uuid default gen_random_uuid() primary key,
+  course_id uuid references public.courses(id) not null,
+  title text not null,
+  zep_link text, -- [핵심] 해당 회차 전용 메타버스 링크
+  start_time timestamp with time zone,
+  created_at timestamp with time zone default now()
+);
+
+
+-- 5. STUDY_SETS (학습 세트)
+-- 멀티미디어를 포함한 JSONB 구조를 가집니다.
+create table public.study_sets (
+  id uuid default gen_random_uuid() primary key,
+  owner_id uuid references public.profiles(id) not null,
+  title text not null,
+  description text,
+  type text check (type in ('word', 'sentence')),
+  is_public boolean default false,
+  target_repeat int default 10, -- 1세션 완료를 위한 목표 반복 횟수
+  content jsonb not null,       -- [핵심] 오디오/이미지/비디오 포함 데이터
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- [참고] content 컬럼에 대한 주석 (개발 시 참고용)
+comment on column public.study_sets.content is 
+'JSON Array Example:
+[
+  {
+    "id": 1,
+    "text": "Sentence Text",
+    "translation": "해석",
+    "audio_url": "https://.../file.mp3", (필수)
+    "image_url": "https://.../img.jpg",   (선택)
+    "video_url": "https://.../vid.mp4"    (선택)
+  }
+]';
+
+
+-- 6. USER_STUDY_PROGRESS (학습 진도)
+-- 실시간 모니터링 및 반복 횟수 기록용입니다.
+create table public.user_study_progress (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) not null,
+  study_set_id uuid references public.study_sets(id) not null,
+  total_repeat_count int default 0, -- 누적 세션 완료 횟수
+  total_speaking_count int default 0,
+  total_skip_count int default 0,   -- 스킵 어뷰징 체크용
+  last_studied_at timestamp with time zone default now(), -- [Polling] 최근 학습 시간
+  unique(user_id, study_set_id)
+);
+
+
+-- 7. ASSIGNMENTS (숙제)
+-- 누적형/신규형 숙제를 관리합니다.
+create table public.assignments (
+  id uuid default gen_random_uuid() primary key,
+  teacher_id uuid references public.profiles(id) not null,
+  student_id uuid references public.profiles(id) not null,
+  study_set_id uuid references public.study_sets(id) not null,
+  assignment_type text check (assignment_type in ('accumulate', 'new')),
+  target_count int not null,
+  due_date timestamp with time zone,
+  is_completed boolean default false,
+  created_at timestamp with time zone default now()
+);
+
+
+-- 8. WEEKLY_RANKINGS (랭킹 캐시)
+-- 배치 작업으로 생성될 주간 랭킹 데이터입니다.
+create table public.weekly_rankings (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) not null,
+  week_start_date date not null,
+  total_score int default 0,
+  rank_position int not null,
+  created_at timestamp with time zone default now()
+);
+[개발 참고] Study Set JSONB 데이터 구조
+프론트엔드 개발 시 study_sets 테이블의 content 필드에 넣을 데이터 포맷입니다.
+
+JSON
+
+[
+  {
+    "id": 1, 
+    "text": "I go to school by bus.", 
+    "translation": "나는 버스를 타고 학교에 가.", 
+    "audio_url": "https://my-project.supabase.co/storage/v1/object/public/audio-files/bus.mp3",
+    "image_url": "https://my-project.supabase.co/storage/v1/object/public/images/bus.jpg",
+    "video_url": null
+  },
+  {
+    "id": 2, 
+    "text": "Where is the subway station?", 
+    "translation": "지하철역이 어디인가요?", 
+    "audio_url": "https://my-project.supabase.co/storage/v1/object/public/audio-files/subway.mp3",
+    "image_url": null,
+    "video_url": "https://my-project.supabase.co/storage/v1/object/public/videos/subway_guide.mp4"
+  }
+]

@@ -1,0 +1,139 @@
+🛡️ Supabase RLS (Row Level Security) 보안 정책 스크립트
+이 코드를 Supabase SQL Editor에 복사해서 실행하세요. 이 한 번의 실행으로 서비스의 보안 체계가 완성됩니다.
+
+SQL
+
+-- [1단계] 모든 테이블에 RLS 활성화 (기본적으로 모든 접근 차단)
+alter table public.profiles enable row level security;
+alter table public.courses enable row level security;
+alter table public.enrollments enable row level security;
+alter table public.live_classes enable row level security;
+alter table public.study_sets enable row level security;
+alter table public.user_study_progress enable row level security;
+alter table public.assignments enable row level security;
+alter table public.weekly_rankings enable row level security;
+
+-- [2단계] 사용자 정의 함수 (Helper Functions)
+-- 교사(teacher) 또는 관리자(admin)인지 확인하는 함수 (정책 재사용성을 위해)
+create or replace function public.is_teacher_or_admin()
+returns boolean as $$
+begin
+  return exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role in ('teacher', 'admin')
+  );
+end;
+$$ language plpgsql security definer;
+
+
+-- [3단계] 테이블별 세부 정책 (Policies)
+
+-- 1. PROFILES (프로필)
+-- 조회: 누구나 자기 자신은 볼 수 있음. 교사는 모든 학생을 볼 수 있음.
+create policy "Profiles are viewable by self or teachers" on public.profiles
+  for select using ( auth.uid() = id or public.is_teacher_or_admin() );
+
+-- 수정: 자기 자신만 프로필(닉네임, 아바타 등) 수정 가능
+create policy "Users can update own profile" on public.profiles
+  for update using ( auth.uid() = id );
+  
+-- 삽입: 회원가입 트리거로 자동 생성되므로 정책 불필요 (혹은 서비스 롤만 가능)
+
+
+-- 2. COURSES (강의)
+-- 조회: 로그인한 모든 사용자가 강의 목록을 볼 수 있음 (수강 신청을 위해)
+create policy "Courses are viewable by everyone" on public.courses
+  for select using ( auth.role() = 'authenticated' );
+
+-- 생성/수정/삭제: 교사/관리자만 가능
+create policy "Only teachers can manage courses" on public.courses
+  for all using ( public.is_teacher_or_admin() );
+
+
+-- 3. ENROLLMENTS (수강 이력)
+-- 조회: 학생은 자기 수강 이력만, 교사는 전체 수강 이력 조회 가능
+create policy "Enrollments viewable by owner or teacher" on public.enrollments
+  for select using ( auth.uid() = user_id or public.is_teacher_or_admin() );
+
+-- 생성(수강신청): 시스템(결제 후)에서 처리하거나, MVP에서는 본인이 생성 가능하다고 가정
+-- (보안 강화 시: Webhook 등 서버 사이드에서만 insert 권장하지만, MVP는 Authenticated 허용)
+create policy "Users can enroll themselves" on public.enrollments
+  for insert with check ( auth.uid() = user_id );
+
+
+-- 4. LIVE_CLASSES (라이브 수업)
+-- 조회: 로그인한 사용자는 수업 목록 조회 가능
+create policy "Live classes viewable by authenticated" on public.live_classes
+  for select using ( auth.role() = 'authenticated' );
+
+-- 관리: 교사만 가능
+create policy "Only teachers manage live classes" on public.live_classes
+  for all using ( public.is_teacher_or_admin() );
+
+
+-- 5. STUDY_SETS (학습 세트) - [핵심]
+-- 조회: 'Public'인 세트 또는 '내가 만든' 세트만 조회 가능. (교사는 다 볼 수 있게 할 수도 있지만 우선 원칙대로)
+create policy "Study sets viewable if public or owner" on public.study_sets
+  for select using ( is_public = true or owner_id = auth.uid() );
+
+-- 생성/수정/삭제: 본인이 만든 것만 가능
+create policy "Users manage own study sets" on public.study_sets
+  for all using ( owner_id = auth.uid() );
+
+
+-- 6. USER_STUDY_PROGRESS (학습 진도)
+-- 조회: 학생은 자기 것만, 교사는 모든 학생의 진도 조회 가능 (모니터링)
+create policy "Progress viewable by owner or teacher" on public.user_study_progress
+  for select using ( auth.uid() = user_id or public.is_teacher_or_admin() );
+
+-- 수정(학습진행): 학생은 자기 진도만 업데이트 가능
+create policy "Users update own progress" on public.user_study_progress
+  for all using ( auth.uid() = user_id );
+
+
+-- 7. ASSIGNMENTS (숙제)
+-- 조회: 학생은 자기에게 할당된 것만, 교사는 자기가 낸 숙제(또는 전체) 조회
+create policy "Assignments viewable by student or teacher" on public.assignments
+  for select using ( auth.uid() = student_id or public.is_teacher_or_admin() );
+
+-- 관리: 교사만 숙제 생성/수정 가능
+create policy "Only teachers manage assignments" on public.assignments
+  for all using ( public.is_teacher_or_admin() );
+
+
+-- 8. WEEKLY_RANKINGS (랭킹)
+-- 조회: 누구나 랭킹 확인 가능
+create policy "Rankings viewable by everyone" on public.weekly_rankings
+  for select using ( true );
+📂 [필수] Storage 보안 정책 (오디오/이미지 업로드용)
+Supabase 대시보드의 Storage 메뉴에서 버킷을 생성해야 합니다. SQL로도 가능하지만, 아래 절차를 따르는 것이 더 확실합니다.
+
+Supabase 대시보드 -> Storage -> New Bucket 클릭.
+
+버킷 이름: lms-assets (또는 audio-files)
+
+Public Bucket: 체크 ✅ (그래야 프론트엔드에서 URL로 접근 가능)
+
+생성 후, 해당 버킷의 Configuration -> Policies 탭에서 아래 SQL을 실행하거나 UI로 설정하세요.
+
+SQL
+
+-- Storage 정책 (SQL Editor에서 실행 가능)
+-- 가정: 버킷 이름이 'lms-assets' 일 때
+
+-- 1. 조회 (Download): 누구나 가능 (Public Bucket이므로)
+-- (UI 설정 시: Give users access to select/download)
+
+-- 2. 업로드 (Insert): 로그인한 사용자(학생/교사) 누구나 가능
+create policy "Authenticated users can upload assets"
+on storage.objects for insert
+with check ( bucket_id = 'lms-assets' and auth.role() = 'authenticated' );
+
+-- 3. 수정/삭제: 본인이 올린 파일만 가능
+create policy "Users can update own assets"
+on storage.objects for update
+using ( bucket_id = 'lms-assets' and owner = auth.uid() );
+
+create policy "Users can delete own assets"
+on storage.objects for delete
+using ( bucket_id = 'lms-assets' and owner = auth.uid() );

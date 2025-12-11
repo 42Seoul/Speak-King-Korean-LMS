@@ -1,0 +1,109 @@
+📘 LMS MVP 테크 스펙 (Technical Specification)
+1. 기술 스택 (Tech Stack) & 선정 이유1인 개발의 생명은 생산성과 타입 안정성입니다.
+구분,기술 스택,선정 이유
+Framework,Next.js 14+ (App Router),"SEO 최적화, 서버 컴포넌트(RSC)를 통한 성능 확보, Vercel 배포 용이성."
+Language,TypeScript,DB 스키마와 프론트엔드 간의 타입 일치(Type Safety)를 통해 런타임 에러 최소화.
+Styling,Tailwind CSS,클래스명 고민 없이 빠른 스타일링 가능.
+UI Library,shadcn/ui,Copy & Paste 방식의 컴포넌트 라이브러리. 디자인 시간을 획기적으로 단축.
+State Mgmt,Zustand (Client),Redux보다 훨씬 가볍고 직관적인 전역 상태 관리 (스킵 카운트 등).
+Data Fetching,TanStack Query (React Query),"서버 상태 관리, 캐싱, Polling(자동 갱신) 구현의 표준."
+Backend/DB,Supabase,"Auth, Postgres DB, Storage, Edge Functions를 올인원으로 해결."
+Icon,Lucide React,가볍고 깔끔한 아이콘 세트.
+
+2. 프로젝트 아키텍처 및 폴더 구조 (Project Structure)
+Next.js App Router의 표준을 따르되, 기능(Feature) 단위보다는 역할(Role) 단위로 심플하게 가져갑니다.
+
+Bash/
+
+├── app/                     # Next.js App Router
+│   ├── (public)/            # 비로그인 접근 가능 (메인, 소개)
+│   ├── (auth)/              # 로그인/회원가입 (login, callback)
+│   ├── (student)/           # 학생 전용 페이지 (dashboard, classroom)
+│   │   ├── dashboard/       
+│   │   ├── classroom/[id]/  # 말하기 학습 화면 (핵심)
+│   │   └── my-page/
+│   ├── (teacher)/           # 교사 전용 페이지
+│   │   ├── management/      # 학생 관리
+│   │   └── content/         # 학습 세트 생성
+│   ├── api/                 # 서버 사이드 로직 (필요 시)
+│   ├── layout.tsx           # 전역 레이아웃
+│   └── page.tsx             # 메인 페이지
+├── components/
+│   ├── ui/                  # shadcn/ui 컴포넌트 (Button, Card...)
+│   ├── shared/              # 공통 컴포넌트 (Header, Footer)
+│   ├── classroom/           # 학습 화면 전용 컴포넌트 (AudioPlayer, Recorder)
+│   └── teacher/             # 교사 관리용 컴포넌트 (StudentTable)
+├── lib/
+│   ├── supabase/            # Supabase Client 설정 (browser, server)
+│   ├── utils.ts             # 유틸리티 함수 (cn 등)
+│   └── constants.ts         # 상수 관리 (임계값 등)
+├── hooks/                   # 커스텀 훅
+│   ├── use-speech.ts        # STT 로직 캡슐화
+│   └── use-user.ts          # 유저 정보 가져오기
+├── types/
+│   └── database.types.ts    # Supabase에서 생성한 DB 타입 정의
+└── public/                  # 정적 파일 (이미지 등)
+
+3. 핵심 기능 구현 전략 (Implementation Strategy)
+3.1. 말하기 학습 엔진 (Speaking Engine)
+이 프로젝트의 핵심인 '딜레이 없는 학습'을 위해 브라우저 네이티브 API를 활용합니다.
+
+기술: Web Speech API (window.SpeechRecognition 또는 webkitSpeechRecognition)
+
+구현 방식: useSpeechToText 커스텀 훅 제작.
+
+유사도 검사:
+
+외부 API 호출 X (비용/속도 문제).
+
+Levenshtein Distance (편집 거리 알고리즘) 자바스크립트 경량 라이브러리(fast-levenshtein 등)를 사용하여 클라이언트에서 즉시 채점.
+
+일치율(%) = (1 - 편집거리 / 긴문자열길이) * 100
+
+보안: 클라이언트 단의 로직이므로 위변조 가능성을 인정하고, 대신 total_skip_count 로깅을 철저히 함.
+
+3.2. 실시간 모니터링 (Polling)
+교사가 학생들의 진도를 1분마다 확인하는 기능입니다.
+
+기술: TanStack Query (useQuery)
+
+설정:
+
+TypeScript
+
+// 교사 페이지 컴포넌트 예시
+const { data } = useQuery({
+  queryKey: ['student-progress', courseId],
+  queryFn: fetchStudentProgress,
+  refetchInterval: 60000, // 60초마다 자동 갱신 (Polling)
+});
+
+3.3. 멀티미디어 처리 (Supabase Storage)
+업로드: 교사가 파일 선택 -> supabase.storage.from('audio-files').upload(...) -> 반환된 URL을 JSON에 삽입.
+
+재생: 프론트엔드에서는 URL을 <audio src={url} /> 태그에 바로 바인딩.
+
+3.4. DB 타입 연동 (Type Generation)
+수동으로 타입을 정의하지 않고, Supabase CLI를 통해 DB 스키마를 TS 타입으로 자동 추출하여 사용합니다.
+
+명령어: npx supabase gen types typescript --project-id "your-id" > types/database.types.ts
+
+효과: DB 컬럼명이 바뀌면 프론트엔드 코드에서 빨간 줄이 뜨므로 유지보수가 매우 쉬워짐.
+
+4. 데이터 페칭 및 상태 관리
+Server Components (RSC): 초기 데이터 로딩 (예: 대시보드 진입 시 내 정보)은 서버 컴포넌트에서 수행하여 속도 최적화.
+
+Client Components: 인터랙션이 많은 '말하기 학습 화면'은 클라이언트 컴포넌트('use client')로 구현.
+
+Supabase Client:
+
+Server Component용: createServerComponentClient (쿠키 기반 인증)
+
+Client Component용: createClientComponentClient
+
+5. 개발 컨벤션 (Convention)
+커밋 메시지: feat: 기능명, fix: 버그수정, chore: 설정변경 (Conventional Commits 준수).
+
+컴포넌트 분리 기준: 코드가 200줄이 넘어가거나, 두 번 이상 재사용되면 무조건 분리한다.
+
+UI 라이브러리: 디자인 고민할 시간에 shadcn/ui의 컴포넌트를 복사해서 기능 구현에 집중한다.
