@@ -109,9 +109,12 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
 
   // 4. Evaluation Logic
   useEffect(() => {
-    if (!transcript || feedback === 'success' || isFinished) return
+    // Combine finalized text with currently spoken text for instant feedback
+    const fullText = (transcript + " " + interimTranscript).trim()
+    
+    if (!fullText || feedback === 'success' || isFinished) return
 
-    const { score: newScore, passed, matchType } = evaluateSpeech(currentItem.text, transcript)
+    const { score: newScore, passed, matchType } = evaluateSpeech(currentItem.text, fullText)
     setScore(newScore)
 
     if (passed) {
@@ -119,11 +122,16 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
         setFeedback("success")
         stopListening()
         
+        // Dynamic delay based on match type
+        // A_contains: Instant (fast) transition for perfect matches
+        // B_similarity: Slight delay (500ms) to let user finish speaking or see the score
+        const delay = matchType === 'A_contains' ? 100 : 500
+
         setTimeout(() => {
             handleNext("success")
-        }, 500)
+        }, delay)
     } 
-  }, [transcript, currentItem.text, feedback, stopListening, isFinished])
+  }, [transcript, interimTranscript, currentItem.text, feedback, stopListening, isFinished])
 
   // 5. Navigation Logic
   const handleNext = async (result: "success" | "skipped") => {
@@ -294,7 +302,7 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
                                     <span>Listening...</span>
                                 </div>
                                 <p className="text-lg font-medium text-center break-keep">
-                                    {interimTranscript || transcript || "..."}
+                                    { (interimTranscript || transcript).slice(-50) || "..."}
                                 </p>                            </div>
                         ) : feedback === 'success' ? (
                             <div className="flex flex-col items-center gap-2 text-green-600 animate-in zoom-in duration-300">

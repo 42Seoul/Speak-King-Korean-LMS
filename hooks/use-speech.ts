@@ -18,9 +18,10 @@ export const useSpeechToText = () => {
   
   const isListeningRef = useRef(false)
   const recognitionRef = useRef<any>(null)
-
-  const resultOffset = useRef(0)
-  const finalResultCount = useRef(0)
+  
+  // Accumulation Strategy Refs
+  const accumulatedRef = useRef("") 
+  const currentSessionFinalRef = useRef("") 
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -46,31 +47,20 @@ export const useSpeechToText = () => {
     }
 
     recognition.onresult = (event: any) => {
-      let final = ""
-      let interim = ""
-      
-      let currentFinalCount = 0
+      let sessionFinal = ""
+      let sessionInterim = ""
+
       for (let i = 0; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-              currentFinalCount++
-          }
-      }
-      finalResultCount.current = currentFinalCount
-
-      if (event.results.length < resultOffset.current) {
-          resultOffset.current = 0
-      }
-
-      for (let i = resultOffset.current; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript
+          sessionFinal += event.results[i][0].transcript
         } else {
-          interim += event.results[i][0].transcript
+          sessionInterim += event.results[i][0].transcript
         }
       }
 
-      setTranscript(final)
-      setInterimTranscript(interim)
+      currentSessionFinalRef.current = sessionFinal
+      setTranscript(accumulatedRef.current + sessionFinal)
+      setInterimTranscript(sessionInterim)
     }
 
     recognition.onerror = (event: any) => {
@@ -86,6 +76,10 @@ export const useSpeechToText = () => {
 
     recognition.onend = () => {
       if (isListeningRef.current) {
+        // Accumulate the finalized text from the session that just ended
+        accumulatedRef.current += currentSessionFinalRef.current
+        currentSessionFinalRef.current = ""
+        
         try {
             recognition.start()
         } catch (e) {
@@ -108,6 +102,7 @@ export const useSpeechToText = () => {
   const startListening = useCallback(() => {
     if (recognitionRef.current) {
       isListeningRef.current = true
+      // Optimistic UI update
       setStatus("listening")
       setError(null)
       
@@ -130,7 +125,13 @@ export const useSpeechToText = () => {
   const resetTranscript = useCallback(() => {
     setTranscript("")
     setInterimTranscript("")
-    resultOffset.current = finalResultCount.current
+    accumulatedRef.current = ""
+    currentSessionFinalRef.current = ""
+    
+    // Force abort to clear browser buffer (Issue 2 fix)
+    if (recognitionRef.current) {
+        recognitionRef.current.abort()
+    }
   }, [])
 
   return {
