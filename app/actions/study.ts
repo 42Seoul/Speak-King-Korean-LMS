@@ -56,24 +56,61 @@ export async function deleteStudySet(id: string) {
   
     if (!user) throw new Error("Unauthorized")
   
-    // Delete the study set
-    // Note: If there are foreign key constraints (like assignments or progress), 
-    // those need to be handled. For now, we assume cascade delete or no constraints,
-    // or we might fail.
-    
-    // Check ownership first
-    const { data: rawSet } = await supabase
+    // 1. Fetch study set details (Owner & Content)
+    const { data: studySet, error: fetchError } = await supabase
         .from('study_sets')
-        .select('owner_id')
+        .select('owner_id, content')
         .eq('id', id)
         .single()
     
-    const set = rawSet as any
-        
-    if (!set || set.owner_id !== user.id) {
+    if (fetchError || !studySet) {
+        throw new Error("Study set not found")
+    }
+    
+    // Check ownership
+    if ((studySet as any).owner_id !== user.id) {
         throw new Error("You do not have permission to delete this.")
     }
 
+    // 2. Delete Associated Audio Files
+    const contentItems = (studySet as any).content as any[] || []
+    const filesToDelete: string[] = []
+    
+    contentItems.forEach(item => {
+        if (item.audio_url && typeof item.audio_url === 'string') {
+            // Check if it's hosted in our supabase bucket
+            if (item.audio_url.includes('lms-assets/')) {
+                 // Extract path: "audio/filename.webm"
+                 const parts = item.audio_url.split('lms-assets/')
+                 if (parts.length > 1) {
+                     filesToDelete.push(parts[1])
+                 }
+            }
+        }
+    })
+
+    if (filesToDelete.length > 0) {
+        const { error: storageError } = await supabase.storage
+            .from('lms-assets')
+            .remove(filesToDelete)
+            
+        if (storageError) {
+            console.error("Warning: Failed to delete some audio files", storageError)
+            // Continue deletion flow even if storage cleanup fails
+        }
+    }
+
+    // 3. Delete Study Progress (Explicit Cleanup)
+    const { error: progressError } = await supabase
+        .from('user_study_progress')
+        .delete()
+        .eq('study_set_id', id)
+
+    if (progressError) {
+         console.error("Warning: Failed to delete progress records", progressError)
+    }
+
+    // 4. Delete the Study Set
     const { error } = await supabase
         .from('study_sets')
         .delete()
