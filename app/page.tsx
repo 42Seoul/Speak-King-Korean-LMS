@@ -1,7 +1,32 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function Home() {
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (user) {
+    // Fetch profile to check role
+    const { data: rawProfile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    
+    const profile = rawProfile as any
+    
+    if (profile?.role === 'teacher' || profile?.role === 'admin') {
+      redirect('/management/dashboard')
+    } else {
+      redirect('/dashboard')
+    }
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
       <h1 className="text-4xl font-bold mb-4">Speaking LMS MVP</h1>
@@ -9,10 +34,7 @@ export default function Home() {
       
       <div className="flex gap-4">
         <Link href="/login">
-          <Button variant="outline">Login</Button>
-        </Link>
-        <Link href="/dashboard">
-          <Button>Go to Dashboard</Button>
+          <Button size="lg">Login to Start</Button>
         </Link>
       </div>
     </main>

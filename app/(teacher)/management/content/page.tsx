@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Plus, Edit } from "lucide-react"
+import { Plus } from "lucide-react"
+import { StudySetItem } from "@/components/teacher/study-set-item"
 
 export default async function ContentListPage() {
   const cookieStore = cookies()
@@ -35,26 +35,7 @@ export default async function ContentListPage() {
 
       <div className="grid gap-4">
         {studySets?.map((set) => (
-            <Card key={set.id}>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>{set.title}</CardTitle>
-                        <CardDescription>{set.description}</CardDescription>
-                    </div>
-                    <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex gap-2 text-sm text-muted-foreground">
-                        <span className="bg-secondary px-2 py-1 rounded">Type: {set.type}</span>
-                        <span className="bg-secondary px-2 py-1 rounded">Target: {set.target_repeat} repeats</span>
-                        <span className={set.is_public ? "text-green-600" : "text-yellow-600"}>
-                            {set.is_public ? "Public" : "Private"}
-                        </span>
-                    </div>
-                </CardContent>
-            </Card>
+            <StudySetItem key={set.id} set={set} />
         ))}
 
         {(!studySets || studySets.length === 0) && (

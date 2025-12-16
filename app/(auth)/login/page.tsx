@@ -21,8 +21,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40">
       <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-sm">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold">Welcome Back</h1>
-          <p className="text-sm text-muted-foreground">Sign in to continue to LMS</p>
+          <h1 className="text-2xl font-bold">안녕하세요</h1>
+          <h1 className="text-2xl font-bold">Hello!</h1>
+          <p className="text-sm text-muted-foreground">Sign in to continue Speak king Korean</p>
         </div>
         
         <Button 

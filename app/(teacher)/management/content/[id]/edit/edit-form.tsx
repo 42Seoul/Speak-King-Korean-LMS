@@ -8,9 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { Trash2, Plus, Upload, Save, Loader2 } from "lucide-react"
+import { Trash2, Plus, Save, Loader2 } from "lucide-react"
 
-// Types matching the JSON structure
 interface ContentItem {
   id: number
   text: string
@@ -19,22 +18,28 @@ interface ContentItem {
   image_url?: string
 }
 
-export default function CreateContentPage() {
+interface EditContentFormProps {
+  studySetId: string
+  initialData: {
+    title: string
+    description: string
+    target_repeat: number
+    content: ContentItem[]
+  }
+}
+
+export function EditContentForm({ studySetId, initialData }: EditContentFormProps) {
   const router = useRouter()
   const supabase = createClient()
   
   const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState<number | null>(null) // ID of item being uploaded
+  const [uploading, setUploading] = useState<number | null>(null)
 
-  // Form State
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [targetRepeat, setTargetRepeat] = useState(10)
-  const [items, setItems] = useState<ContentItem[]>([
-    { id: 1, text: "", translation: "", audio_url: "" }
-  ])
+  const [title, setTitle] = useState(initialData.title)
+  const [description, setDescription] = useState(initialData.description || "")
+  const [targetRepeat, setTargetRepeat] = useState(initialData.target_repeat || 10)
+  const [items, setItems] = useState<ContentItem[]>(initialData.content || [])
 
-  // Handlers
   const handleAddItem = () => {
     setItems(prev => [
       ...prev, 
@@ -60,16 +65,12 @@ export default function CreateContentPage() {
       const fileName = `${Math.random()}.${fileExt}`
       const filePath = `audio/${fileName}`
 
-      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('lms-assets')
         .upload(filePath, file)
 
-      if (uploadError) {
-        throw uploadError
-      }
+      if (uploadError) throw uploadError
 
-      // Get Public URL
       const { data: { publicUrl } } = supabase.storage
         .from('lms-assets')
         .getPublicUrl(filePath)
@@ -78,7 +79,7 @@ export default function CreateContentPage() {
 
     } catch (error) {
       console.error("Upload failed", error)
-      alert("Failed to upload audio file. Check bucket permissions.")
+      alert("Failed to upload audio file.")
     } finally {
       setUploading(null)
     }
@@ -86,38 +87,33 @@ export default function CreateContentPage() {
 
   const handleSubmit = async () => {
     if (!title || items.some(i => !i.text || !i.audio_url)) {
-      alert("Please fill in all required fields (Title, Text, Audio).")
+      alert("Please fill in all required fields (Title, Target Text, Audio).")
       return
     }
 
     try {
       setLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
       
-      if (!user) throw new Error("Not authenticated")
-
-      // Insert into DB
-      const { error } = await supabase
-        .from('study_sets')
-        .insert({
-          owner_id: user.id,
+      const { error } = await (supabase
+        .from('study_sets') as any)
+        .update({
           title,
           description,
-          type: 'sentence', // Defaulting for MVP
           target_repeat: targetRepeat,
-          is_public: true, // Making public by default for easier testing
-          content: items // JSONB magic
-        } as any)
+          content: items,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', studySetId)
 
       if (error) throw error
 
-      alert("Study Set created successfully!")
+      alert("Study Set updated successfully!")
       router.push('/management/content')
       router.refresh()
 
     } catch (error) {
-      console.error("Save failed", error)
-      alert("Failed to save study set.")
+      console.error("Update failed", error)
+      alert("Failed to update study set.")
     } finally {
       setLoading(false)
     }
@@ -126,18 +122,16 @@ export default function CreateContentPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Create New Study Set</h1>
-        <p className="text-muted-foreground">Add sentences and audio for students to practice.</p>
+        <h1 className="text-3xl font-bold">Edit Study Set</h1>
+        <p className="text-muted-foreground">Modify sentences and audio.</p>
       </div>
 
-      {/* Metadata Section */}
       <Card>
         <CardContent className="pt-6 space-y-4">
             <div className="grid gap-2">
                 <Label htmlFor="title">Title</Label>
                 <Input 
                     id="title" 
-                    placeholder="e.g. Basic Greetings - Week 1" 
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                 />
@@ -146,13 +140,12 @@ export default function CreateContentPage() {
                 <Label htmlFor="desc">Description</Label>
                 <Textarea 
                     id="desc" 
-                    placeholder="Briefly describe this lesson..." 
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                 />
             </div>
             <div className="grid gap-2">
-                <Label htmlFor="repeat">Target Repeats (Session Goal)</Label>
+                <Label htmlFor="repeat">Target Repeats</Label>
                 <Input 
                     id="repeat" 
                     type="number" 
@@ -164,7 +157,6 @@ export default function CreateContentPage() {
         </CardContent>
       </Card>
 
-      {/* Items Section */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Study Items ({items.length})</h2>
@@ -173,22 +165,22 @@ export default function CreateContentPage() {
             </Button>
         </div>
 
-        {items.map((item, index) => (
+        {items.map((item) => (
             <Card key={item.id}>
                 <CardContent className="pt-6 grid gap-4 md:grid-cols-[1fr_1fr_auto] items-start">
                     <div className="space-y-4">
                         <div className="grid gap-2">
-                            <Label>Korean Text (Target)</Label>
+                            <Label>Target Text (Korean)</Label>
                             <Input 
-                                placeholder="안녕하세요, 잘 지내세요?"
+                                placeholder="안녕하세요"
                                 value={item.text}
                                 onChange={e => handleUpdateItem(item.id, 'text', e.target.value)}
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Translation (English)</Label>
+                            <Label>Translation (Meaning)</Label>
                             <Input 
-                                placeholder="Hello, how are you?"
+                                placeholder="Hello"
                                 value={item.translation}
                                 onChange={e => handleUpdateItem(item.id, 'translation', e.target.value)}
                             />
@@ -198,14 +190,12 @@ export default function CreateContentPage() {
                     <div className="space-y-4">
                         <div className="grid gap-2">
                             <Label>Audio Source</Label>
-                            {/* Option A: Direct URL */}
                             <Input 
                                 placeholder="https://..."
                                 value={item.audio_url}
                                 onChange={e => handleUpdateItem(item.id, 'audio_url', e.target.value)}
                                 className="text-xs font-mono"
                             />
-                            {/* Option B: Upload */}
                             <div className="flex items-center gap-2">
                                 <Input 
                                     type="file" 
@@ -237,16 +227,15 @@ export default function CreateContentPage() {
         ))}
       </div>
 
-      {/* Footer Actions */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t flex justify-end container max-w-4xl">
          <Button size="lg" onClick={handleSubmit} disabled={loading}>
             {loading ? (
                 <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...
                 </>
             ) : (
                 <>
-                    <Save className="mr-2 h-4 w-4" /> Save Study Set
+                    <Save className="mr-2 h-4 w-4" /> Update Study Set
                 </>
             )}
          </Button>

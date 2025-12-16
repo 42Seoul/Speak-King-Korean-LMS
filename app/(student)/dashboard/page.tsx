@@ -38,12 +38,33 @@ export default async function DashboardPage() {
     
   const studySets = rawStudySets as any[]
 
+  // Fetch user's study progress
+  const { data: rawUserProgress } = await supabase
+    .from('user_study_progress')
+    .select('study_set_id, total_repeat_count')
+    .eq('user_id', user.id)
+  
+  const userProgress = rawUserProgress as { study_set_id: string; total_repeat_count: number }[]
+
+  // Map progress to study sets
+  const studySetsWithProgress = studySets?.map(set => {
+    const progress = userProgress?.find(p => p.study_set_id === set.id)
+    return {
+      ...set,
+      completedCount: progress?.total_repeat_count || 0
+    }
+  }) || []
+
+  // Calculate total completed sessions for the dashboard stat
+  const totalCompletedSessions = userProgress?.reduce((sum, p) => sum + (p.total_repeat_count || 0), 0) || 0
+
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Student Dashboard</h1>
       
       <div className="grid gap-4 md:grid-cols-3">
-        {/* ... (Keep existing stats cards) ... */}
+        {/* My Level Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">My Level</CardTitle>
@@ -55,17 +76,19 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
         
+        {/* Study Progress Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Study Progress</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0 Sessions</div>
-            <p className="text-xs text-muted-foreground">Completed this week</p>
+            <div className="text-2xl font-bold">{totalCompletedSessions} Sessions</div>
+            <p className="text-xs text-muted-foreground">Completed overall</p>
           </CardContent>
         </Card>
 
+        {/* Profile Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Profile</CardTitle>
@@ -81,20 +104,25 @@ export default async function DashboardPage() {
       <div className="space-y-4">
          <h2 className="text-xl font-semibold">Available Study Sets</h2>
          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {studySets && studySets.length > 0 ? (
-                studySets.map((set) => (
+            {studySetsWithProgress && studySetsWithProgress.length > 0 ? (
+                studySetsWithProgress.map((set) => (
                     <Card key={set.id} className="hover:bg-muted/50 transition-colors">
                         <CardHeader>
                             <CardTitle>{set.title}</CardTitle>
                             <CardDescription>{set.description}</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex justify-between items-center">
+                            <div className="flex items-center justify-between mt-2">
                                 <span className="text-xs bg-secondary px-2 py-1 rounded">
                                     {set.type === 'word' ? 'Words' : 'Sentences'}
                                 </span>
+                                <span className="text-sm text-muted-foreground">
+                                    Completed: <span className="font-semibold text-foreground">{set.completedCount}</span> times
+                                </span>
+                            </div>
+                            <div className="mt-4">
                                 <Link href={`/classroom/${set.id}`}>
-                                    <Button size="sm">Start Learning</Button>
+                                    <Button size="sm" className="w-full">Start Learning</Button>
                                 </Link>
                             </div>
                         </CardContent>

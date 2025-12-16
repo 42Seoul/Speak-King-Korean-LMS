@@ -16,9 +16,11 @@ export const useSpeechToText = () => {
   const [interimTranscript, setInterimTranscript] = useState("")
   const [error, setError] = useState<string | null>(null)
   
-  // Ref to track if we should be listening (manual toggle)
   const isListeningRef = useRef(false)
   const recognitionRef = useRef<any>(null)
+
+  const resultOffset = useRef(0)
+  const finalResultCount = useRef(0)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -27,25 +29,39 @@ export const useSpeechToText = () => {
     const SpeechRecognitionAPI = SpeechRecognition || webkitSpeechRecognition
 
     if (!SpeechRecognitionAPI) {
-      setError("Browser does not support Speech Recognition.")
+      setError("unsupported_browser")
       return
     }
 
     const recognition = new SpeechRecognitionAPI()
-    recognition.continuous = false // We restart manually for better control
-    recognition.interimResults = true // Enable real-time feedback
-    recognition.lang = "ko-KR" // Set to Korean for this app (Korean Speaking Practice)
+    recognition.continuous = true 
+    recognition.interimResults = true 
+    recognition.lang = "ko-KR" 
 
     recognition.onstart = () => {
-      setStatus("listening")
+      if (isListeningRef.current) {
+          setStatus("listening")
+      }
       setError(null)
     }
 
     recognition.onresult = (event: any) => {
       let final = ""
       let interim = ""
+      
+      let currentFinalCount = 0
+      for (let i = 0; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+              currentFinalCount++
+          }
+      }
+      finalResultCount.current = currentFinalCount
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results.length < resultOffset.current) {
+          resultOffset.current = 0
+      }
+
+      for (let i = resultOffset.current; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           final += event.results[i][0].transcript
         } else {
@@ -53,38 +69,27 @@ export const useSpeechToText = () => {
         }
       }
 
-      if (final) {
-        // Append final result to our state or just replace?
-        // For short sentence practice, usually replacing is better as they retry
-        setTranscript(final)
-        setInterimTranscript("")
-      } else {
-        setInterimTranscript(interim)
-      }
+      setTranscript(final)
+      setInterimTranscript(interim)
     }
 
     recognition.onerror = (event: any) => {
-      // 'no-speech' is common, we just ignore/restart
-      if (event.error === 'no-speech') {
-         return 
-      }
-      // 'aborted' happens when we stop manually
-      if (event.error === 'aborted') {
+      if (event.error === 'no-speech') return 
+      
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setError("permission_denied")
+          setStatus("error")
+          isListeningRef.current = false 
           return
       }
-
-      console.error("Speech recognition error:", event.error)
-      setError(event.error)
-      setStatus("error")
     }
 
     recognition.onend = () => {
-      // Auto-restart if we are supposed to be listening
       if (isListeningRef.current) {
         try {
             recognition.start()
         } catch (e) {
-            // ignore if already started
+            // ignore
         }
       } else {
         setStatus("idle")
@@ -103,13 +108,13 @@ export const useSpeechToText = () => {
   const startListening = useCallback(() => {
     if (recognitionRef.current) {
       isListeningRef.current = true
-      setTranscript("")
-      setInterimTranscript("")
+      setStatus("listening")
       setError(null)
+      
       try {
         recognitionRef.current.start()
-      } catch (e) {
-        // Already started?
+      } catch (e: any) {
+        // ignore
       }
     }
   }, [])
@@ -122,10 +127,10 @@ export const useSpeechToText = () => {
     setStatus("idle")
   }, [])
 
-  // Force reset transcript (useful when changing questions)
   const resetTranscript = useCallback(() => {
     setTranscript("")
     setInterimTranscript("")
+    resultOffset.current = finalResultCount.current
   }, [])
 
   return {
