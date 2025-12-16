@@ -73,17 +73,24 @@ export async function deleteStudySet(id: string) {
         throw new Error("You do not have permission to delete this.")
     }
 
-    // Initialize Admin Client to bypass RLS for cleanup
-    const supabaseAdmin = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false
+    // Determine Client: Use Admin if Key exists (to bypass RLS), otherwise fallback to User Client
+    let targetClient = supabase
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (serviceRoleKey) {
+        targetClient = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            serviceRoleKey,
+            {
+                auth: {
+                    autoRefreshToken: false,
+                    persistSession: false
+                }
             }
-        }
-    )
+        )
+    } else {
+        console.warn("Missing SUPABASE_SERVICE_ROLE_KEY. Deletion may fail if RLS prevents deleting student records.")
+    }
 
     // 2. Delete Associated Audio Files
     const contentItems = (studySet as any).content as any[] || []
@@ -103,8 +110,8 @@ export async function deleteStudySet(id: string) {
     })
 
     if (filesToDelete.length > 0) {
-        // Use Admin client for storage as well to ensure permission
-        const { error: storageError } = await supabaseAdmin.storage
+        // Use targetClient (Admin or User)
+        const { error: storageError } = await targetClient.storage
             .from('lms-assets')
             .remove(filesToDelete)
             
@@ -113,20 +120,20 @@ export async function deleteStudySet(id: string) {
         }
     }
 
-    // 3. Delete Study Progress (Explicit Cleanup using Admin)
-    const { error: progressError } = await supabaseAdmin
+    // 3. Delete Study Progress (Explicit Cleanup)
+    const { error: progressError } = await targetClient
         .from('user_study_progress')
         .delete()
         .eq('study_set_id', id)
 
     if (progressError) {
          console.error("Warning: Failed to delete progress records", progressError)
-         // If this fails, the next step will likely fail with FK violation
-         throw new Error("Failed to clear student progress records. Cannot delete study set.")
+         // If we are using standard client and RLS fails, we might throw here to prevent partial delete state
+         // But for now we log and proceed to try deleting the set.
     }
 
-    // 4. Delete the Study Set (using Admin to be safe, though Owner should have permission)
-    const { error } = await supabaseAdmin
+    // 4. Delete the Study Set
+    const { error } = await targetClient
         .from('study_sets')
         .delete()
         .eq('id', id)
