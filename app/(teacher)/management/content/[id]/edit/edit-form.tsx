@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { Trash2, Plus, Save, Loader2 } from "lucide-react"
+import { Trash2, Plus, Save, Loader2, CheckCircle2, FileAudio } from "lucide-react"
 import { AudioRecorder } from "@/components/teacher/audio-recorder"
 
 interface ContentItem {
@@ -16,6 +16,7 @@ interface ContentItem {
   text: string
   translation: string
   audio_url: string
+  audioFile?: File | null // Temporary file for deferred upload
   image_url?: string
 }
 
@@ -34,7 +35,6 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
   const supabase = createClient()
   
   const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState<number | null>(null)
 
   const [title, setTitle] = useState(initialData.title)
   const [description, setDescription] = useState(initialData.description || "")
@@ -59,49 +59,53 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
     ))
   }
 
-  const handleFileUpload = async (id: number, file: File) => {
-    try {
-      setUploading(id)
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
-      const filePath = `audio/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('lms-assets')
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('lms-assets')
-        .getPublicUrl(filePath)
-
-      handleUpdateItem(id, 'audio_url', publicUrl)
-
-    } catch (error) {
-      console.error("Upload failed", error)
-      alert("Failed to upload audio file.")
-    } finally {
-      setUploading(null)
-    }
+  const handleFileSelect = (id: number, file: File | null) => {
+    setItems(prev => prev.map(item => 
+      item.id === id ? { ...item, audioFile: file } : item
+    ))
   }
 
   const handleSubmit = async () => {
-    if (!title || items.some(i => !i.text || !i.audio_url)) {
-      alert("Please fill in all required fields (Title, Target Text, Audio).")
+    // Validation: Check if text is filled and either URL or File exists
+    const isValid = items.every(i => i.text && (i.audio_url || i.audioFile))
+
+    if (!title || !isValid) {
+      alert("Please fill in all required fields (Title, Text) and ensure every item has an audio file or recording.")
       return
     }
 
     try {
       setLoading(true)
       
+      // 1. Upload Pending Files
+      const finalItems = await Promise.all(items.map(async (item) => {
+        if (item.audioFile) {
+             const fileExt = item.audioFile.name.split('.').pop() || 'webm'
+             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+             const filePath = `audio/${fileName}`
+             
+             const { error } = await supabase.storage.from('lms-assets').upload(filePath, item.audioFile)
+             if (error) throw error
+             
+             const { data } = supabase.storage.from('lms-assets').getPublicUrl(filePath)
+             
+             // Return item with new URL and remove temporary file
+             const { audioFile, ...rest } = item
+             return { ...rest, audio_url: data.publicUrl }
+        }
+        // Clean up temporary field for DB storage
+        const { audioFile, ...rest } = item
+        return rest
+      }))
+
+      // 2. Update DB
       const { error } = await (supabase
         .from('study_sets') as any)
         .update({
           title,
           description,
           target_repeat: targetRepeat,
-          content: items,
+          content: finalItems,
           updated_at: new Date().toISOString()
         })
         .eq('id', studySetId)
@@ -114,7 +118,7 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
 
     } catch (error) {
       console.error("Update failed", error)
-      alert("Failed to update study set.")
+      alert("Failed to update study set. Please check your connection.")
     } finally {
       setLoading(false)
     }
@@ -191,31 +195,54 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
                     <div className="space-y-4">
                         <div className="grid gap-2">
                             <Label>Audio Source</Label>
-                            <Input 
-                                placeholder="https://..."
-                                value={item.audio_url}
-                                onChange={e => handleUpdateItem(item.id, 'audio_url', e.target.value)}
-                                className="text-xs font-mono"
-                            />
-                            <div className="flex items-center gap-2">
-                                <Input 
-                                    type="file" 
-                                    accept="audio/*" 
-                                    className="text-xs"
-                                    onChange={e => {
-                                        if (e.target.files?.[0]) {
-                                            handleFileUpload(item.id, e.target.files[0])
-                                        }
-                                    }}
-                                    disabled={uploading === item.id}
-                                />
-                                <span className="text-muted-foreground text-xs">or</span>
-                                <AudioRecorder 
-                                    onFileReady={(file) => handleFileUpload(item.id, file)}
-                                    isUploading={uploading === item.id}
-                                />
-                                {uploading === item.id && <Loader2 className="h-4 w-4 animate-spin" />}
-                            </div>
+                            
+                            {/* Status Indicator */}
+                            {item.audioFile ? (
+                                <div className="flex items-center gap-2 p-2 bg-green-50 text-green-700 rounded-md border border-green-200">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    <span className="text-xs font-medium truncate max-w-[150px]">
+                                        {item.audioFile.name.startsWith('recording-') ? 'Voice Recorded' : item.audioFile.name}
+                                    </span>
+                                    <Button 
+                                        variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto"
+                                        onClick={() => handleFileSelect(item.id, null)}
+                                    >
+                                        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                    </Button>
+                                </div>
+                            ) : item.audio_url ? (
+                                <div className="flex items-center gap-2 p-2 bg-secondary rounded-md">
+                                    <FileAudio className="h-4 w-4 text-primary" />
+                                    <span className="text-xs font-medium text-muted-foreground truncate max-w-[150px]">
+                                        Existing Audio
+                                    </span>
+                                    <Button 
+                                        variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto"
+                                        onClick={() => handleUpdateItem(item.id, 'audio_url', "")}
+                                    >
+                                        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                        <Input 
+                                            type="file" 
+                                            accept="audio/*" 
+                                            className="w-[200px] text-xs"
+                                            onChange={e => {
+                                                if (e.target.files?.[0]) {
+                                                    handleFileSelect(item.id, e.target.files[0])
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <span className="text-muted-foreground text-xs">or</span>
+                                    <AudioRecorder 
+                                        onFileReady={(file) => handleFileSelect(item.id, file)}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -249,3 +276,4 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
     </div>
   )
 }
+

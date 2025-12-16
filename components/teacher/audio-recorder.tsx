@@ -2,17 +2,15 @@
 
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Mic, Square, Play, Check, RotateCcw, X, Loader2 } from "lucide-react"
+import { Mic, Square, Play, X } from "lucide-react"
 
 interface AudioRecorderProps {
-  onFileReady: (file: File) => void
-  isUploading: boolean
+  onFileReady: (file: File | null) => void
 }
 
-export function AudioRecorder({ onFileReady, isUploading }: AudioRecorderProps) {
+export function AudioRecorder({ onFileReady }: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -32,8 +30,11 @@ export function AudioRecorder({ onFileReady, isUploading }: AudioRecorderProps) 
       mediaRecorderRef.current.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
         const url = URL.createObjectURL(blob)
-        setRecordedBlob(blob)
         setAudioUrl(url)
+        
+        // Automatically notify parent with the new file
+        const file = new File([blob], `recording-${Date.now()}.webm`, { type: 'audio/webm' })
+        onFileReady(file)
         
         // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop())
@@ -63,16 +64,8 @@ export function AudioRecorder({ onFileReady, isUploading }: AudioRecorderProps) 
 
   const handleReset = () => {
     setAudioUrl(null)
-    setRecordedBlob(null)
     chunksRef.current = []
-  }
-
-  const handleConfirm = () => {
-    if (recordedBlob) {
-      const file = new File([recordedBlob], `recording-${Date.now()}.webm`, { type: 'audio/webm' })
-      onFileReady(file)
-      handleReset() // Reset UI after passing the file
-    }
+    onFileReady(null) // Clear file in parent
   }
 
   // 1. Initial State (Start)
@@ -82,7 +75,6 @@ export function AudioRecorder({ onFileReady, isUploading }: AudioRecorderProps) 
         variant="outline" 
         size="sm" 
         onClick={startRecording}
-        disabled={isUploading}
         className="gap-2 text-xs"
       >
         <Mic className="h-3.5 w-3.5" /> Record
@@ -120,23 +112,11 @@ export function AudioRecorder({ onFileReady, isUploading }: AudioRecorderProps) 
       </Button>
       
       <div className="h-4 w-px bg-border" />
-      
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={handleConfirm} 
-        disabled={isUploading}
-        className="h-7 w-auto px-2 text-xs gap-1 text-green-600 hover:text-green-700 hover:bg-green-50"
-      >
-        {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-        Upload
-      </Button>
 
       <Button 
         variant="ghost" 
         size="sm" 
         onClick={handleReset}
-        disabled={isUploading}
         className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
       >
         <X className="h-3.5 w-3.5" />
