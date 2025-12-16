@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Trash2, Plus, Save, Loader2 } from "lucide-react"
+import { AudioRecorder } from "@/components/teacher/audio-recorder"
 
 interface ContentItem {
   id: number
@@ -207,6 +208,11 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
                                         }
                                     }}
                                     disabled={uploading === item.id}
+                                />
+                                <span className="text-muted-foreground text-xs">or</span>
+                                <AudioRecorder 
+                                    onFileReady={(file) => handleFileUpload(item.id, file)}
+                                    isUploading={uploading === item.id}
                                 />
                                 {uploading === item.id && <Loader2 className="h-4 w-4 animate-spin" />}
                             </div>
