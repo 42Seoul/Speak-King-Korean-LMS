@@ -121,26 +121,39 @@ export async function deleteStudySet(id: string) {
     }
 
     // 3. Delete Study Progress (Explicit Cleanup)
+    // We try to delete all related progress. 
+    // NOTE: Without Service Role Key, RLS may silently prevent deleting other users' data, returning 'success' but deleting 0 rows.
     const { error: progressError } = await targetClient
         .from('user_study_progress')
         .delete()
         .eq('study_set_id', id)
 
     if (progressError) {
-         console.error("Warning: Failed to delete progress records", progressError)
-         // If we are using standard client and RLS fails, we might throw here to prevent partial delete state
-         // But for now we log and proceed to try deleting the set.
+         console.error("Error deleting progress records:", progressError)
+         throw new Error(`Failed to clean up student records: ${progressError.message}`)
     }
 
     // 4. Delete the Study Set
-    const { error } = await targetClient
-        .from('study_sets')
-        .delete()
-        .eq('id', id)
+    try {
+        const { error } = await targetClient
+            .from('study_sets')
+            .delete()
+            .eq('id', id)
+            
+        if (error) throw error
         
-    if (error) {
+    } catch (error: any) {
         console.error("Delete failed", error)
-        throw new Error("Failed to delete study set")
+        
+        // Handle Foreign Key Constraint Violation (Postgres Code 23503)
+        if (error.code === '23503') {
+            throw new Error(
+                "Cannot delete study set because student records still exist. " +
+                "You likely need to add 'SUPABASE_SERVICE_ROLE_KEY' to your .env.local file to allow deleting other students' data."
+            )
+        }
+        
+        throw new Error(error.message || "Failed to delete study set")
     }
     
     revalidatePath('/management/content')
