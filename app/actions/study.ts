@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 
@@ -72,6 +73,18 @@ export async function deleteStudySet(id: string) {
         throw new Error("You do not have permission to delete this.")
     }
 
+    // Initialize Admin Client to bypass RLS for cleanup
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
+        }
+    )
+
     // 2. Delete Associated Audio Files
     const contentItems = (studySet as any).content as any[] || []
     const filesToDelete: string[] = []
@@ -90,28 +103,30 @@ export async function deleteStudySet(id: string) {
     })
 
     if (filesToDelete.length > 0) {
-        const { error: storageError } = await supabase.storage
+        // Use Admin client for storage as well to ensure permission
+        const { error: storageError } = await supabaseAdmin.storage
             .from('lms-assets')
             .remove(filesToDelete)
             
         if (storageError) {
             console.error("Warning: Failed to delete some audio files", storageError)
-            // Continue deletion flow even if storage cleanup fails
         }
     }
 
-    // 3. Delete Study Progress (Explicit Cleanup)
-    const { error: progressError } = await supabase
+    // 3. Delete Study Progress (Explicit Cleanup using Admin)
+    const { error: progressError } = await supabaseAdmin
         .from('user_study_progress')
         .delete()
         .eq('study_set_id', id)
 
     if (progressError) {
          console.error("Warning: Failed to delete progress records", progressError)
+         // If this fails, the next step will likely fail with FK violation
+         throw new Error("Failed to clear student progress records. Cannot delete study set.")
     }
 
-    // 4. Delete the Study Set
-    const { error } = await supabase
+    // 4. Delete the Study Set (using Admin to be safe, though Owner should have permission)
+    const { error } = await supabaseAdmin
         .from('study_sets')
         .delete()
         .eq('id', id)
