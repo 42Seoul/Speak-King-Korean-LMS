@@ -56,6 +56,7 @@ create table public.profiles (
   role text default 'student' check (role in ('student', 'teacher', 'admin')),
   nickname text,
   avatar_url text, -- LMS 스프라이트 이미지 URL
+  sprite_url text, -- [NEW] 캐릭터 스프라이트 이미지 URL 추가
   level int default 1,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
