@@ -3,8 +3,9 @@ import { cookies } from "next/headers"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { BookOpen, Trophy, User } from "lucide-react"
+import { BookOpen, Trophy, User, AlertCircle } from "lucide-react"
 import { redirect } from "next/navigation"
+import { Badge } from "@/components/ui/badge"
 
 export default async function DashboardPage() {
   const cookieStore = cookies()
@@ -29,7 +30,7 @@ export default async function DashboardPage() {
     redirect('/management/dashboard')
   }
 
-  // Fetch study sets (public or owned by user)
+  // 1. Fetch study sets (public or owned by user)
   const { data: rawStudySets } = await supabase
     .from('study_sets')
     .select('*')
@@ -38,7 +39,7 @@ export default async function DashboardPage() {
     
   const studySets = rawStudySets as any[]
 
-  // Fetch user's study progress
+  // 2. Fetch user's study progress
   const { data: rawUserProgress } = await supabase
     .from('user_study_progress')
     .select('study_set_id, total_repeat_count')
@@ -46,12 +47,22 @@ export default async function DashboardPage() {
   
   const userProgress = rawUserProgress as { study_set_id: string; total_repeat_count: number }[]
 
+  // 3. Fetch Pending Assignments (NEW)
+  const { data: pendingAssignments } = await supabase
+    .from('assignments')
+    .select('study_set_id')
+    .eq('student_id', user.id)
+    .eq('is_completed', false)
+
+  const pendingSetIds = new Set(pendingAssignments?.map((a: any) => a.study_set_id))
+
   // Map progress to study sets
   const studySetsWithProgress = studySets?.map(set => {
     const progress = userProgress?.find(p => p.study_set_id === set.id)
     return {
       ...set,
-      completedCount: progress?.total_repeat_count || 0
+      completedCount: progress?.total_repeat_count || 0,
+      isAssigned: pendingSetIds.has(set.id)
     }
   }) || []
 
@@ -106,9 +117,19 @@ export default async function DashboardPage() {
          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {studySetsWithProgress && studySetsWithProgress.length > 0 ? (
                 studySetsWithProgress.map((set) => (
-                    <Card key={set.id} className="hover:bg-muted/50 transition-colors">
+                    <Card key={set.id} className={`hover:bg-muted/50 transition-colors relative ${set.isAssigned ? 'border-red-200 bg-red-50/5' : ''}`}>
+                        {/* Assignment Badge */}
+                        {set.isAssigned && (
+                             <div className="absolute top-3 right-3 z-10">
+                                 <Badge variant="destructive" className="animate-pulse flex gap-1 items-center px-2 py-0.5 text-[10px]">
+                                     <AlertCircle className="h-3 w-3" />
+                                     HOMEWORK
+                                 </Badge>
+                             </div>
+                        )}
+
                         <CardHeader>
-                            <CardTitle>{set.title}</CardTitle>
+                            <CardTitle className="pr-8">{set.title}</CardTitle>
                             <CardDescription>{set.description}</CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -122,7 +143,9 @@ export default async function DashboardPage() {
                             </div>
                             <div className="mt-4">
                                 <Link href={`/classroom/${set.id}`}>
-                                    <Button size="sm" className="w-full">Start Learning</Button>
+                                    <Button size="sm" className="w-full" variant={set.isAssigned ? "default" : "secondary"}>
+                                        {set.isAssigned ? "Start Homework" : "Start Learning"}
+                                    </Button>
                                 </Link>
                             </div>
                         </CardContent>

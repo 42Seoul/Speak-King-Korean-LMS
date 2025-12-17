@@ -12,7 +12,7 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
 
   if (!user) throw new Error("Unauthorized")
 
-  // 1. Check if progress exists & Update/Insert
+  // 1. Check if progress exists & Update/Insert (User Client)
   let currentTotalRepeats = 0
   
   const { data: rawExisting } = await supabase
@@ -51,9 +51,29 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
       })
   }
 
-  // 2. Check Assignments & Mark as Completed
+  // 2. Check Assignments & Mark as Completed (Admin Client for RLS Bypass)
+  // Use Service Role Key to allow updating 'assignments' table which might be read-only for students via RLS
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  let targetClient: any = supabase // Fallback to user client if key missing
+  
+  if (serviceRoleKey) {
+      targetClient = createAdminClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          serviceRoleKey,
+          {
+              auth: {
+                  autoRefreshToken: false,
+                  persistSession: false
+              }
+          }
+      )
+  } else {
+      console.warn("Missing SUPABASE_SERVICE_ROLE_KEY. Assignment completion update might fail due to RLS.")
+  }
+
   // Find pending assignments for this student & set
-  const { data: pendingAssignments } = await supabase
+  const { data: pendingAssignments } = await targetClient
       .from('assignments')
       .select('id, target_count')
       .eq('student_id', user.id)
@@ -66,10 +86,14 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
           .map((a: any) => a.id)
 
       if (completedIds.length > 0) {
-          await supabase
+          const { error: updateError } = await targetClient
               .from('assignments')
               .update({ is_completed: true })
               .in('id', completedIds)
+          
+          if (updateError) {
+              console.error("Failed to mark assignment as completed:", updateError)
+          }
       }
   }
 
@@ -158,7 +182,7 @@ export async function deleteStudySet(id: string) {
          throw new Error(`Failed to clean up student records: ${progressError.message}`)
     }
 
-    // 4. Delete Assignments related to this study set (NEW STEP)
+    // 4. Delete Assignments related to this study set
     const { error: assignmentsError } = await targetClient
         .from('assignments')
         .delete()
