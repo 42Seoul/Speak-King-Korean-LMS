@@ -1,4 +1,3 @@
-import { Header } from "@/components/shared/header"
 import { createClient } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
@@ -33,11 +32,10 @@ export default async function TeacherLayout({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-1 container py-6">
-        {/* Navigation moved to Header */}
+      <div className="flex-1 container py-6">
+        {/* Navigation moved to Sidebar (MainLayout) */}
         {children}
-      </main>
+      </div>
     </div>
   )
 }
