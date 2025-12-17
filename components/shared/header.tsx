@@ -1,7 +1,7 @@
 "use client"
 
 import { createClient } from "@/lib/supabase/client"
-import { LogOut, Shield } from "lucide-react"
+import { LogOut, Shield, User } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -46,7 +46,13 @@ export function Header() {
               </Link>
           )}
 
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
+          <Link href="/account">
+              <Button variant="ghost" size="icon" title="My Account">
+                  <User className="h-4 w-4" />
+              </Button>
+          </Link>
+
+          <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
