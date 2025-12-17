@@ -45,6 +45,9 @@ export async function createAssignments(data: AssignmentData) {
         finalTarget += current
     }
 
+    const currentProgress = progressMap.get(studentId) || 0
+    const isAlreadyCompleted = currentProgress >= finalTarget
+
     return {
         teacher_id: user.id,
         student_id: studentId,
@@ -52,7 +55,7 @@ export async function createAssignments(data: AssignmentData) {
         assignment_type: data.assignment_type,
         target_count: finalTarget,
         due_date: data.due_date,
-        is_completed: false
+        is_completed: isAlreadyCompleted // Auto-complete if already met
     }
   })
 

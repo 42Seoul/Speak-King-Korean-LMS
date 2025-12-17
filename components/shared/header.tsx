@@ -3,12 +3,13 @@
 import { createClient } from "@/lib/supabase/client"
 import { LogOut, Shield, User } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 export function Header() {
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient()
   const [role, setRole] = useState<string | null>(null)
   const [pendingCount, setPendingCount] = useState(0)
@@ -35,7 +36,7 @@ export function Header() {
         }
     }
     checkUser()
-  }, [])
+  }, [pathname]) // Refresh when route changes
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

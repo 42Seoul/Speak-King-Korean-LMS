@@ -47,6 +47,8 @@ export const useSpeechToText = () => {
     }
 
     recognition.onresult = (event: any) => {
+      if (!isListeningRef.current) return
+
       let sessionFinal = ""
       let sessionInterim = ""
 
@@ -99,11 +101,14 @@ export const useSpeechToText = () => {
     }
   }, [])
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback((optimistic: boolean = true) => {
     if (recognitionRef.current) {
       isListeningRef.current = true
-      // Optimistic UI update
-      setStatus("listening")
+      
+      // Optimistic UI update: Only if requested (default true)
+      if (optimistic) {
+          setStatus("listening")
+      }
       setError(null)
       
       try {
@@ -123,15 +128,20 @@ export const useSpeechToText = () => {
   }, [])
 
   const resetTranscript = useCallback(() => {
+    // 1. Block any further processing/accumulation
+    isListeningRef.current = false
+    
+    // 2. Clear all states
     setTranscript("")
     setInterimTranscript("")
     accumulatedRef.current = ""
     currentSessionFinalRef.current = ""
     
-    // Force abort to clear browser buffer (Issue 2 fix)
+    // 3. Force abort to clear browser buffer
     if (recognitionRef.current) {
         recognitionRef.current.abort()
     }
+    setStatus("idle")
   }, [])
 
   return {
