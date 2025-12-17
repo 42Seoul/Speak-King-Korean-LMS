@@ -179,7 +179,8 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
   const handleStartPermissionsCheckAndSession = () => {
     if (isInitiatingMic) return; // Prevent double click
     setIsInitiatingMic(true);
-    startListening(); // This will prompt for mic permission if not granted
+    // Disable optimistic UI here to wait for actual 'onstart' event (permission granted)
+    startListening(false); 
   };
 
   useEffect(() => {
