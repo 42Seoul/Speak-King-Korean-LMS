@@ -12,7 +12,9 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
 
   if (!user) throw new Error("Unauthorized")
 
-  // 1. Check if progress exists
+  // 1. Check if progress exists & Update/Insert
+  let currentTotalRepeats = 0
+  
   const { data: rawExisting } = await supabase
     .from('user_study_progress')
     .select('*')
@@ -23,31 +25,56 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
   const existing = rawExisting as any
 
   if (existing) {
+    currentTotalRepeats = (existing.total_repeat_count || 0) + 1
     // Update
     await (supabase
       .from('user_study_progress') as any)
       .update({
-        total_repeat_count: (existing.total_repeat_count || 0) + 1,
+        total_repeat_count: currentTotalRepeats,
         total_speaking_count: (existing.total_speaking_count || 0) + stats.spoken,
         total_skip_count: (existing.total_skip_count || 0) + stats.skipped,
         last_studied_at: new Date().toISOString()
       })
       .eq('id', existing.id)
   } else {
+    currentTotalRepeats = 1
     // Insert
     await (supabase
       .from('user_study_progress') as any)
       .insert({
         user_id: user.id,
         study_set_id: studySetId,
-        total_repeat_count: 1,
+        total_repeat_count: currentTotalRepeats,
         total_speaking_count: stats.spoken,
         total_skip_count: stats.skipped,
         last_studied_at: new Date().toISOString()
       })
   }
 
+  // 2. Check Assignments & Mark as Completed
+  // Find pending assignments for this student & set
+  const { data: pendingAssignments } = await supabase
+      .from('assignments')
+      .select('id, target_count')
+      .eq('student_id', user.id)
+      .eq('study_set_id', studySetId)
+      .eq('is_completed', false)
+
+  if (pendingAssignments && pendingAssignments.length > 0) {
+      const completedIds = pendingAssignments
+          .filter((a: any) => currentTotalRepeats >= a.target_count)
+          .map((a: any) => a.id)
+
+      if (completedIds.length > 0) {
+          await supabase
+              .from('assignments')
+              .update({ is_completed: true })
+              .in('id', completedIds)
+      }
+  }
+
   revalidatePath('/dashboard')
+  revalidatePath('/assignments')
 }
 
 export async function deleteStudySet(id: string) {
@@ -121,8 +148,6 @@ export async function deleteStudySet(id: string) {
     }
 
     // 3. Delete Study Progress (Explicit Cleanup)
-    // We try to delete all related progress. 
-    // NOTE: Without Service Role Key, RLS may silently prevent deleting other users' data, returning 'success' but deleting 0 rows.
     const { error: progressError } = await targetClient
         .from('user_study_progress')
         .delete()
@@ -133,7 +158,18 @@ export async function deleteStudySet(id: string) {
          throw new Error(`Failed to clean up student records: ${progressError.message}`)
     }
 
-    // 4. Delete the Study Set
+    // 4. Delete Assignments related to this study set (NEW STEP)
+    const { error: assignmentsError } = await targetClient
+        .from('assignments')
+        .delete()
+        .eq('study_set_id', id)
+
+    if (assignmentsError) {
+        console.error("Error deleting assignment records:", assignmentsError)
+        throw new Error(`Failed to clean up assignment records: ${assignmentsError.message}`)
+    }
+
+    // 5. Delete the Study Set
     try {
         const { error } = await targetClient
             .from('study_sets')

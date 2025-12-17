@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "LMS MVP",
+  title: "Speak King Korean",
   description: "Speaking-focused Learning Management System",
 };
 

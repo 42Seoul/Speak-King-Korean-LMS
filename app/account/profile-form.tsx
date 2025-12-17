@@ -5,11 +5,22 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Loader2, Upload, User, Sparkles, Save } from "lucide-react"
-import { updateProfile } from "@/app/actions/profile"
+import { Loader2, Upload, User, Sparkles, Save, Trash2, AlertTriangle } from "lucide-react"
+import { updateProfile, deleteUserAccount } from "@/app/actions/profile"
 import { useRouter } from "next/navigation"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface ProfileFormProps {
   user: any
@@ -21,6 +32,7 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
   const supabase = createClient()
   
   const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [uploadingSprite, setUploadingSprite] = useState(false)
 
@@ -33,11 +45,6 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
       loadingSetter(true)
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
-      const filePath = `${fileName}` // Save directly in root or folder? Let's use root for avatars bucket or folder in lms-assets
-
-      // We'll reuse 'lms-assets' bucket but maybe under 'profiles/' folder?
-      // Or if there is an 'avatars' bucket. Let's assume 'lms-assets' for simplicity as we used it before.
-      // Ideally avatars should be public.
       const storagePath = `profiles/${fileName}`
 
       const { error: uploadError } = await supabase.storage
@@ -79,136 +86,190 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
     }
   }
 
+  const handleDeleteAccount = async () => {
+      setDeleting(true)
+      try {
+          await deleteUserAccount()
+          // Redirect handled in server action
+      } catch (e: any) {
+          alert("Failed to delete account: " + e.message)
+          setDeleting(false)
+      }
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Left Column: Basic Info & Avatar */}
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Basic Information</CardTitle>
-                    <CardDescription>Update your public profile details.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {/* Avatar Upload */}
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="relative group cursor-pointer">
-                            <Avatar className="h-24 w-24 border-2 border-border">
-                                <AvatarImage src={avatarUrl} />
-                                <AvatarFallback className="text-2xl">{nickname?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Upload className="h-6 w-6 text-white" />
+    <div className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="grid gap-6 md:grid-cols-2">
+            {/* Left Column: Basic Info & Avatar */}
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Basic Information</CardTitle>
+                        <CardDescription>Update your public profile details.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {/* Avatar Upload */}
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="relative group cursor-pointer">
+                                <Avatar className="h-24 w-24 border-2 border-border">
+                                    <AvatarImage src={avatarUrl} />
+                                    <AvatarFallback className="text-2xl">{nickname?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Upload className="h-6 w-6 text-white" />
+                                </div>
+                                <Input 
+                                    type="file" 
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        if(e.target.files?.[0]) handleFileUpload(e.target.files[0], 'lms-assets', setAvatarUrl, setUploadingAvatar)
+                                    }}
+                                    disabled={uploadingAvatar}
+                                />
+                                {uploadingAvatar && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full">
+                                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                    </div>
+                                )}
                             </div>
+                            <p className="text-xs text-muted-foreground">Click to change avatar</p>
+                        </div>
+
+                        {/* Nickname */}
+                        <div className="grid gap-2">
+                            <Label htmlFor="nickname">Nickname</Label>
+                            <Input 
+                                id="nickname" 
+                                value={nickname} 
+                                onChange={(e) => setNickname(e.target.value)} 
+                                placeholder="Display Name"
+                            />
+                        </div>
+
+                        {/* Email (Read-only) */}
+                        <div className="grid gap-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input id="email" value={user.email} disabled className="bg-muted" />
+                        </div>
+                        
+                        {/* Role (Read-only) */}
+                        <div className="grid gap-2">
+                            <Label htmlFor="role">Role</Label>
+                            <div className="flex items-center gap-2">
+                                <span className="px-2 py-1 bg-secondary rounded text-sm font-medium capitalize">
+                                    {profile?.role || 'Student'}
+                                </span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Right Column: Sprite & Extras */}
+            <div className="space-y-6">
+                <Card className="h-full">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Sparkles className="h-5 w-5 text-yellow-500" />
+                            Character Sprite
+                        </CardTitle>
+                        <CardDescription>Upload a custom character sprite for gamification.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col items-center justify-center space-y-6 h-[calc(100%-88px)]">
+                        <div className="relative w-full aspect-square max-w-[200px] bg-secondary/30 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden group">
+                            {spriteUrl ? (
+                                <img src={spriteUrl} alt="Sprite" className="w-full h-full object-contain p-2" />
+                            ) : (
+                                <div className="text-center p-4 text-muted-foreground">
+                                    <User className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                                    <span className="text-sm">No Sprite Uploaded</span>
+                                </div>
+                            )}
+
+                            {/* Upload Overlay */}
+                            <div className="absolute inset-0 bg-black/5 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                <Upload className="h-8 w-8 text-primary mb-2" />
+                                <span className="text-sm font-medium text-primary bg-background/80 px-2 py-1 rounded">
+                                    Upload Sprite
+                                </span>
+                            </div>
+
                             <Input 
                                 type="file" 
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                                 accept="image/*"
                                 onChange={(e) => {
-                                    if(e.target.files?.[0]) handleFileUpload(e.target.files[0], 'lms-assets', setAvatarUrl, setUploadingAvatar)
+                                    if(e.target.files?.[0]) handleFileUpload(e.target.files[0], 'lms-assets', setSpriteUrl, setUploadingSprite)
                                 }}
-                                disabled={uploadingAvatar}
+                                disabled={uploadingSprite}
                             />
-                            {uploadingAvatar && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full">
-                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+
+                            {uploadingSprite && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 </div>
                             )}
                         </div>
-                        <p className="text-xs text-muted-foreground">Click to change avatar</p>
-                    </div>
-
-                    {/* Nickname */}
-                    <div className="grid gap-2">
-                        <Label htmlFor="nickname">Nickname</Label>
-                        <Input 
-                            id="nickname" 
-                            value={nickname} 
-                            onChange={(e) => setNickname(e.target.value)} 
-                            placeholder="Display Name"
-                        />
-                    </div>
-
-                    {/* Email (Read-only) */}
-                    <div className="grid gap-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input id="email" value={user.email} disabled className="bg-muted" />
-                    </div>
-                    
-                    {/* Role (Read-only) */}
-                    <div className="grid gap-2">
-                        <Label htmlFor="role">Role</Label>
-                        <div className="flex items-center gap-2">
-                            <span className="px-2 py-1 bg-secondary rounded text-sm font-medium capitalize">
-                                {profile?.role || 'Student'}
-                            </span>
+                        
+                        <div className="text-center space-y-1">
+                            <p className="text-sm font-medium">Character Preview</p>
+                            <p className="text-xs text-muted-foreground">Recommended: Transparent PNG</p>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
 
-        {/* Right Column: Sprite & Extras */}
-        <div className="space-y-6">
-            <Card className="h-full">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Sparkles className="h-5 w-5 text-yellow-500" />
-                        Character Sprite
-                    </CardTitle>
-                    <CardDescription>Upload a custom character sprite for gamification.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center space-y-6 h-[calc(100%-88px)]">
-                    <div className="relative w-full aspect-square max-w-[200px] bg-secondary/30 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden group">
-                        {spriteUrl ? (
-                            <img src={spriteUrl} alt="Sprite" className="w-full h-full object-contain p-2" />
-                        ) : (
-                            <div className="text-center p-4 text-muted-foreground">
-                                <User className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                                <span className="text-sm">No Sprite Uploaded</span>
-                            </div>
-                        )}
-
-                        {/* Upload Overlay */}
-                        <div className="absolute inset-0 bg-black/5 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                            <Upload className="h-8 w-8 text-primary mb-2" />
-                            <span className="text-sm font-medium text-primary bg-background/80 px-2 py-1 rounded">
-                                Upload Sprite
-                            </span>
-                        </div>
-
-                        <Input 
-                            type="file" 
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                            accept="image/*"
-                            onChange={(e) => {
-                                if(e.target.files?.[0]) handleFileUpload(e.target.files[0], 'lms-assets', setSpriteUrl, setUploadingSprite)
-                            }}
-                            disabled={uploadingSprite}
-                        />
-
-                        {uploadingSprite && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            </div>
-                        )}
-                    </div>
-                    
-                    <div className="text-center space-y-1">
-                        <p className="text-sm font-medium">Character Preview</p>
-                        <p className="text-xs text-muted-foreground">Recommended: Transparent PNG</p>
-                    </div>
-                </CardContent>
-            </Card>
+        <div className="flex justify-end">
+            <Button size="lg" type="submit" disabled={loading || uploadingAvatar || uploadingSprite}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Changes
+            </Button>
         </div>
-      </div>
+        </form>
 
-      <div className="flex justify-end">
-        <Button size="lg" type="submit" disabled={loading || uploadingAvatar || uploadingSprite}>
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save Changes
-        </Button>
-      </div>
-    </form>
+        {/* Danger Zone */}
+        <Card className="border-red-200 bg-red-50/10">
+            <CardHeader>
+                <CardTitle className="text-red-600 flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5" />
+                    Danger Zone
+                </CardTitle>
+                <CardDescription>
+                    Irreversible actions. Be careful.
+                </CardDescription>
+            </CardHeader>
+            <CardFooter className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">
+                    Permanently delete your account and all associated data.
+                </p>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={deleting}>
+                            {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Delete Account
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete your
+                                account and remove your data from our servers.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-600 hover:bg-red-700">
+                                Yes, delete my account
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </CardFooter>
+        </Card>
+    </div>
   )
 }

@@ -55,7 +55,7 @@ create table public.profiles (
   email text not null,
   role text default 'student' check (role in ('student', 'teacher', 'admin')),
   nickname text,
-  avatar_url text, -- LMS 스프라이트 이미지 URL
+  avatar_url text,
   sprite_url text, -- [NEW] 캐릭터 스프라이트 이미지 URL 추가
   level int default 1,
   created_at timestamp with time zone default now(),
@@ -85,7 +85,7 @@ create trigger on_auth_user_created
 -- 강의 상품으로서의 공식 스케줄을 관리합니다.
 create table public.courses (
   id uuid default gen_random_uuid() primary key,
-  teacher_id uuid references public.profiles(id) not null,
+  teacher_id uuid references public.profiles(id) on delete cascade not null, -- 교사 탈퇴 시 강의도 삭제 (MVP)
   title text not null,
   description text,
   price int default 0,
@@ -101,8 +101,8 @@ create table public.courses (
 -- 학생 개개인의 실제 접속 권한 기간을 관리합니다.
 create table public.enrollments (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.profiles(id) not null,
-  course_id uuid references public.courses(id) not null,
+  user_id uuid references public.profiles(id) on delete cascade not null, -- 학생 탈퇴 시 수강 이력 삭제
+  course_id uuid references public.courses(id) on delete cascade not null, -- 강의 삭제 시 수강 이력 삭제
   start_date timestamp with time zone not null, -- [권한] 접속 허용 시작일
   end_date timestamp with time zone not null,   -- [권한] 접속 차단일
   payment_id text, -- PayPal Transaction ID
@@ -114,7 +114,7 @@ create table public.enrollments (
 -- 각 수업마다 다른 ZEP 링크를 가집니다.
 create table public.live_classes (
   id uuid default gen_random_uuid() primary key,
-  course_id uuid references public.courses(id) not null,
+  course_id uuid references public.courses(id) on delete cascade not null, -- 강의 삭제 시 수업 회차 삭제
   title text not null,
   zep_link text, -- [핵심] 해당 회차 전용 메타버스 링크
   start_time timestamp with time zone,
@@ -126,7 +126,7 @@ create table public.live_classes (
 -- 멀티미디어를 포함한 JSONB 구조를 가집니다.
 create table public.study_sets (
   id uuid default gen_random_uuid() primary key,
-  owner_id uuid references public.profiles(id) not null,
+  owner_id uuid references public.profiles(id) on delete cascade not null, -- 생성자 탈퇴 시 세트 삭제
   title text not null,
   description text,
   type text check (type in ('word', 'sentence')),
@@ -156,8 +156,8 @@ comment on column public.study_sets.content is
 -- 실시간 모니터링 및 반복 횟수 기록용입니다.
 create table public.user_study_progress (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.profiles(id) not null,
-  study_set_id uuid references public.study_sets(id) not null,
+  user_id uuid references public.profiles(id) on delete cascade not null, -- 학생 탈퇴 시 학습 기록 삭제
+  study_set_id uuid references public.study_sets(id) on delete cascade not null, -- 세트 삭제 시 학습 기록 삭제
   total_repeat_count int default 0, -- 누적 세션 완료 횟수
   total_speaking_count int default 0,
   total_skip_count int default 0,   -- 스킵 어뷰징 체크용
@@ -170,9 +170,9 @@ create table public.user_study_progress (
 -- 누적형/신규형 숙제를 관리합니다.
 create table public.assignments (
   id uuid default gen_random_uuid() primary key,
-  teacher_id uuid references public.profiles(id) not null,
-  student_id uuid references public.profiles(id) not null,
-  study_set_id uuid references public.study_sets(id) not null,
+  teacher_id uuid references public.profiles(id) on delete cascade not null, -- 교사 탈퇴 시 낸 숙제 삭제
+  student_id uuid references public.profiles(id) on delete cascade not null, -- 학생 탈퇴 시 받은 숙제 삭제
+  study_set_id uuid references public.study_sets(id) on delete cascade not null, -- 세트 삭제 시 숙제 정보 삭제
   assignment_type text check (assignment_type in ('accumulate', 'new')),
   target_count int not null,
   due_date timestamp with time zone,
@@ -185,7 +185,7 @@ create table public.assignments (
 -- 배치 작업으로 생성될 주간 랭킹 데이터입니다.
 create table public.weekly_rankings (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.profiles(id) not null,
+  user_id uuid references public.profiles(id) on delete cascade not null, -- 탈퇴 시 랭킹 삭제
   week_start_date date not null,
   total_score int default 0,
   rank_position int not null,
