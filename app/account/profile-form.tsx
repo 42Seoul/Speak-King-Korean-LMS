@@ -40,6 +40,9 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "")
   const [spriteUrl, setSpriteUrl] = useState(profile?.sprite_url || "")
 
+  // isStudent 조건 제거, 모든 역할에 동일 UI 적용
+  // const isStudent = profile?.role === 'student'
+
   const handleFileUpload = async (file: File, bucket: string, setter: (url: string) => void, loadingSetter: (v: boolean) => void) => {
     try {
       loadingSetter(true)
@@ -90,7 +93,6 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
       setDeleting(true)
       try {
           await deleteUserAccount()
-          // Redirect handled in server action
       } catch (e: any) {
           alert("Failed to delete account: " + e.message)
           setDeleting(false)
@@ -100,7 +102,7 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
   return (
     <div className="space-y-8">
         <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className={`grid gap-6 md:grid-cols-2`}> {/* 항상 2열 레이아웃 */}
             {/* Left Column: Basic Info & Avatar */}
             <div className="space-y-6">
                 <Card>
@@ -167,7 +169,7 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
                 </Card>
             </div>
 
-            {/* Right Column: Sprite & Extras */}
+            {/* Right Column: Character Sprite (Always Visible) */}
             <div className="space-y-6">
                 <Card className="h-full">
                     <CardHeader>
@@ -209,67 +211,69 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
                             {uploadingSprite && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-background/80">
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                </div>
-                            )}
-                        </div>
-                        
-                        <div className="text-center space-y-1">
-                            <p className="text-sm font-medium">Character Preview</p>
-                            <p className="text-xs text-muted-foreground">Recommended: Transparent PNG</p>
-                        </div>
-                    </CardContent>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div className="text-center space-y-1">
+                                <p className="text-sm font-medium">Character Preview</p>
+                                <p className="text-xs text-muted-foreground">Recommended: Transparent PNG</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            <div className={`flex justify-center`}> {/* 항상 중앙 정렬 */}
+                <Button size="lg" type="submit" disabled={loading || uploadingAvatar || uploadingSprite}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save Changes
+                </Button>
+            </div>
+            </form>
+
+            {/* Danger Zone */}
+            <div className="max-w-2xl mx-auto"> {/* 항상 중앙 정렬 */}
+                <Card className="border-red-200 bg-red-50/10">
+                    <CardHeader>
+                        <CardTitle className="text-red-600 flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5" />
+                            Danger Zone
+                        </CardTitle>
+                        <CardDescription>
+                            Irreversible actions. Be careful.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardFooter className="flex justify-between items-center">
+                        <p className="text-sm text-muted-foreground">
+                            Permanently delete your account and all associated data.
+                        </p>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" disabled={deleting}>
+                                    {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                    Delete Account
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete your
+                                        account and remove your data from our servers.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-600 hover:bg-red-700">
+                                        Yes, delete my account
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </CardFooter>
                 </Card>
             </div>
         </div>
-
-        <div className="flex justify-end">
-            <Button size="lg" type="submit" disabled={loading || uploadingAvatar || uploadingSprite}>
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save Changes
-            </Button>
-        </div>
-        </form>
-
-        {/* Danger Zone */}
-        <Card className="border-red-200 bg-red-50/10">
-            <CardHeader>
-                <CardTitle className="text-red-600 flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5" />
-                    Danger Zone
-                </CardTitle>
-                <CardDescription>
-                    Irreversible actions. Be careful.
-                </CardDescription>
-            </CardHeader>
-            <CardFooter className="flex justify-between items-center">
-                <p className="text-sm text-muted-foreground">
-                    Permanently delete your account and all associated data.
-                </p>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={deleting}>
-                            {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                            Delete Account
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete your
-                                account and remove your data from our servers.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-600 hover:bg-red-700">
-                                Yes, delete my account
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </CardFooter>
-        </Card>
-    </div>
   )
 }

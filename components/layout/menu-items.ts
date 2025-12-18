@@ -35,6 +35,11 @@ export const TEACHER_MENU = [
     label: "Students",
     href: "/management/students",
     icon: Users
+  },
+  {
+    label: "My Account", // TEACHER_MENU 에 My Account 추가
+    href: "/account",
+    icon: Settings
   }
 ]
 

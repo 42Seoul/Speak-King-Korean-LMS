@@ -75,14 +75,6 @@ export function Sidebar({ role }: SidebarProps) {
 
       {/* Footer Actions */}
       <div className="border-t p-4 space-y-2">
-         {role === 'student' && (
-            <Link href="/become-teacher">
-                <Button variant="outline" size="sm" className="w-full justify-start text-muted-foreground">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Teacher Access
-                </Button>
-            </Link>
-         )}
          <Button 
             variant="ghost" 
             size="sm" 
