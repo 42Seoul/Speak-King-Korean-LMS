@@ -12,9 +12,7 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
 
   if (!user) throw new Error("Unauthorized")
 
-  // 1. Check if progress exists & Update/Insert (User Client)
-  let currentTotalRepeats = 0
-  
+  // 1. Check if progress exists
   const { data: rawExisting } = await supabase
     .from('user_study_progress')
     .select('*')
@@ -25,84 +23,113 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
   const existing = rawExisting as any
 
   if (existing) {
-    currentTotalRepeats = (existing.total_repeat_count || 0) + 1
     // Update
     await (supabase
       .from('user_study_progress') as any)
       .update({
-        total_repeat_count: currentTotalRepeats,
+        total_repeat_count: (existing.total_repeat_count || 0) + 1,
         total_speaking_count: (existing.total_speaking_count || 0) + stats.spoken,
         total_skip_count: (existing.total_skip_count || 0) + stats.skipped,
         last_studied_at: new Date().toISOString()
       })
       .eq('id', existing.id)
   } else {
-    currentTotalRepeats = 1
     // Insert
     await (supabase
       .from('user_study_progress') as any)
       .insert({
         user_id: user.id,
         study_set_id: studySetId,
-        total_repeat_count: currentTotalRepeats,
+        total_repeat_count: 1,
         total_speaking_count: stats.spoken,
         total_skip_count: stats.skipped,
         last_studied_at: new Date().toISOString()
       })
   }
 
-  // 2. Check Assignments & Mark as Completed (Admin Client for RLS Bypass)
-  // Use Service Role Key to allow updating 'assignments' table which might be read-only for students via RLS
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  
-  let targetClient: any = supabase // Fallback to user client if key missing
-  
-  if (serviceRoleKey) {
-      targetClient = createAdminClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          serviceRoleKey,
-          {
-              auth: {
-                  autoRefreshToken: false,
-                  persistSession: false
-              }
-          }
-      )
-  } else {
-      console.warn("Missing SUPABASE_SERVICE_ROLE_KEY. Assignment completion update might fail due to RLS.")
-  }
+    
 
-  // Find pending assignments for this student & set
-  const { data: pendingAssignments } = await targetClient
-      .from('assignments')
-      .select('id, target_count')
-      .eq('student_id', user.id)
-      .eq('study_set_id', studySetId)
-      .eq('is_completed', false)
+revalidatePath('/dashboard')
 
-  if (pendingAssignments && pendingAssignments.length > 0) {
-      const completedIds = pendingAssignments
-          .filter((a: any) => currentTotalRepeats >= a.target_count)
-          .map((a: any) => a.id)
-
-      if (completedIds.length > 0) {
-          const { error: updateError } = await targetClient
-              .from('assignments')
-              .update({ is_completed: true })
-              .in('id', completedIds)
-          
-          if (updateError) {
-              console.error("Failed to mark assignment as completed:", updateError)
-          }
-      }
-  }
-
-  revalidatePath('/dashboard')
-  revalidatePath('/assignments')
 }
 
-export async function deleteStudySet(id: string) {
-    const cookieStore = cookies()
+
+
+// XP 및 레벨 업데이트 함수
+
+export async function updateXP(userId: string, xpGained: number) {
+
+  const cookieStore = cookies()
+
+  const supabase = createClient(cookieStore)
+
+
+
+  const { data: profile, error: fetchError } = await supabase
+
+    .from('profiles')
+
+    .select('xp, level')
+
+    .eq('id', userId)
+
+    .single()
+
+
+
+  if (fetchError || !profile) {
+
+    console.error("Failed to fetch user profile for XP update:", fetchError)
+
+    throw new Error("User profile not found for XP update.")
+
+  }
+
+
+
+  const currentXp = profile.xp || 0
+
+  const currentLevel = profile.level || 1 // Default level 1
+
+  const newXp = currentXp + xpGained
+
+
+
+  // 간단한 레벨업 로직: 100 XP마다 1 레벨업
+
+  const newLevel = Math.floor(newXp / 100) + 1
+
+
+
+  const { error: updateError } = await supabase
+
+    .from('profiles')
+
+    .update({ xp: newXp, level: newLevel })
+
+    .eq('id', userId)
+
+
+
+  if (updateError) {
+
+    console.error("Failed to update user XP and level:", updateError)
+
+    throw new Error("Failed to update XP/Level.")
+
+  }
+
+
+
+  revalidatePath('/dashboard')
+
+  revalidatePath('/ranking') // 랭킹 페이지도 갱신
+
+}
+
+
+
+export async function deleteStudySet(id: string) {    const cookieStore = cookies()
     const supabase = createClient(cookieStore)
     const { data: { user } } = await supabase.auth.getUser()
   
@@ -172,6 +199,8 @@ export async function deleteStudySet(id: string) {
     }
 
     // 3. Delete Study Progress (Explicit Cleanup)
+    // We try to delete all related progress. 
+    // NOTE: Without Service Role Key, RLS may silently prevent deleting other users' data, returning 'success' but deleting 0 rows.
     const { error: progressError } = await targetClient
         .from('user_study_progress')
         .delete()
@@ -182,18 +211,7 @@ export async function deleteStudySet(id: string) {
          throw new Error(`Failed to clean up student records: ${progressError.message}`)
     }
 
-    // 4. Delete Assignments related to this study set
-    const { error: assignmentsError } = await targetClient
-        .from('assignments')
-        .delete()
-        .eq('study_set_id', id)
-
-    if (assignmentsError) {
-        console.error("Error deleting assignment records:", assignmentsError)
-        throw new Error(`Failed to clean up assignment records: ${assignmentsError.message}`)
-    }
-
-    // 5. Delete the Study Set
+    // 4. Delete the Study Set
     try {
         const { error } = await targetClient
             .from('study_sets')

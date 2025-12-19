@@ -39,3 +39,29 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python-specific for zepimg_111
+zepimg_111/.venv/
+zepimg_111/__pycache__/
+zepimg_111/*.pyc
+zepimg_111/outputs/
+zepimg_111/temp_uploads/
