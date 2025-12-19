@@ -9,6 +9,7 @@ import { Play, Mic, MicOff, ChevronRight, CheckCircle, AlertCircle, RefreshCw, V
 import { cn, evaluateSpeech } from "@/lib/utils"
 import { updateProgress } from "@/app/actions/study"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client" // 추가
 
 export interface StudyItem {
   id: number
@@ -26,17 +27,28 @@ interface StudyPlayerProps {
   onSessionComplete?: () => void
 }
 
-type SessionStage = "permissions_check" | "playing" // Simplified stages
+type SessionStage = "check_mic" | "ready" | "playing"
 
 export default function StudyPlayer({ studySetId, items, targetRepeat, onSessionComplete }: StudyPlayerProps) {
   const router = useRouter()
+  const supabase = createClient() // 추가
+  const [user, setUser] = useState<any>(null) // 추가
   
   // Session State
-  const [stage, setStage] = useState<SessionStage>("permissions_check") // Initial stage is permissions_check
-  const [isInitiatingMic, setIsInitiatingMic] = useState(false) // New state to track mic initiation
+  const [stage, setStage] = useState<SessionStage>("check_mic")
   const [currentIndex, setCurrentIndex] = useState(0)
   const [completedCount, setCompletedCount] = useState(0) 
   const [isFinished, setIsFinished] = useState(false)
+
+  useEffect(() => { // 추가
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUser(user)
+      }
+    }
+    getUser()
+  }, [supabase]) // supabase 의존성 추가
   
   // Item State
   const [isPlaying, setIsPlaying] = useState(false)
@@ -80,8 +92,8 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
     setFeedback("none")
     setScore(0)
     setCanSkip(false)
-    stopListening() // Call stop first to ensure listening flag is off
-    resetTranscript() // Then clear data
+    resetTranscript()
+    stopListening() // This was called here
     
     playAudio()
   }, [currentIndex, stage, completedCount, isFinished, resetTranscript, stopListening, playAudio])
@@ -165,59 +177,38 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
     
     try {
         await updateProgress(studySetId, finalStats)
+        
+        // 2. [추가] XP 및 레벨 업데이트 (Dongho 로직 응용)
+        // userId는 컴포넌트 상태에서 가져오거나, updateXP 함수 내에서 user를 가져오도록 수정 가능
+        // 여기서는 userId를 컴포넌트 상태에서 가져옵니다.
+        if (user?.id) {
+          const xpGained = 10; // 세션당 10 XP
+          await updateXP(user.id, xpGained);
+          toast.success(`세션 완료! ${xpGained} XP를 획득했습니다.`);
+        }
+
         if (onSessionComplete) onSessionComplete()
-        alert("Session Complete! Great job.")
+        // alert("Session Complete! Great job.") // toast로 대체
         router.push('/dashboard')
     } catch (e) {
-        console.error("Failed to save progress", e)
-        alert("Session saved locally but failed to sync.")
+        console.error("Failed to save progress or update XP", e)
+        toast.error("세션 저장 또는 XP 업데이트에 실패했습니다.") // toast로 대체
+        // alert("Session saved locally but failed to sync.") // toast로 대체
         router.push('/dashboard')
     }
   }
 
-  // --- Mic Permissions & Initial Session Start ---
-  const handleStartPermissionsCheckAndSession = () => {
-    if (isInitiatingMic) return; // Prevent double click
-    setIsInitiatingMic(true);
-    // Disable optimistic UI here to wait for actual 'onstart' event (permission granted)
-    startListening(false); 
-  };
+  // --- STAGE 1: Mic Check & Error Handling ---
+  const handleMicCheck = () => {
+      startListening()
+  }
 
   useEffect(() => {
-    if (!isInitiatingMic) return;
-
-    if (status === 'listening' && !error) {
-        // Mic is active and no error, so permission is granted.
-        stopListening(); // Stop the temporary listening
-        setIsInitiatingMic(false);
-        setStage('playing'); // Go to the actual playing stage
-    } else if (error === 'permission_denied' || error === 'unsupported_browser') {
-        // Error detected during mic initiation
-        setIsInitiatingMic(false);
-        stopListening(); // Ensure it's stopped
-        // The main render logic will catch these errors and display them.
-        // Keep stage as 'permissions_check' to show the error on the initial screen.
-    }
-    
-    // Fallback for cases where permission prompt is ignored or status doesn't change
-    const timeout = setTimeout(() => {
-        if (isInitiatingMic && status !== 'listening' && !error) {
-            console.warn("Microphone activation timed out or permission not granted/denied explicitly.");
-            setIsInitiatingMic(false);
-            stopListening(); // Ensure it's stopped
-            // Optionally set a specific state or message for timeout.
-            // For now, it will just revert to the initial button.
-        }
-    }, 7000); // 7 seconds to wait for user to grant permission
-
-    return () => clearTimeout(timeout);
-
-  }, [isInitiatingMic, status, error, stopListening]);
-
-
-
-
-
+      if (stage === 'check_mic' && status === 'listening') {
+          stopListening() 
+          setStage('ready')
+      }
+  }, [stage, status, stopListening])
 
 
   if (error === 'unsupported_browser') {
@@ -243,33 +234,46 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
       )
   }
 
-  // Consolidated Initial Permission Check / Ready Screen
-  if (stage === 'permissions_check') {
+  if (stage === 'check_mic') {
       return (
-        <div className="fixed inset-0 z-50 bg-background/95 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4">
             <Card className="max-w-md w-full border-2 shadow-xl">
                 <CardContent className="p-8 flex flex-col items-center gap-6 text-center">
                     <div className="rounded-full bg-primary/10 p-6">
-                        <Mic className={cn("h-12 w-12 text-primary", isInitiatingMic && "animate-pulse")} />
+                        <Mic className="h-12 w-12 text-primary animate-pulse" />
                     </div>
                     <div className="space-y-2">
                         <h2 className="text-2xl font-bold">Microphone Check</h2>
-                        <p className="text-muted-foreground">
-                            {isInitiatingMic ? "Please grant microphone access..." : "Click to enable your microphone and start the lesson."}
-                        </p>
+                        <p className="text-muted-foreground">Click the button and say something!</p>
                     </div>
-                    <Button
-                        size="lg"
-                        className="w-full text-lg h-12"
-                        onClick={handleStartPermissionsCheckAndSession}
-                        disabled={isInitiatingMic}
-                    >
-                        {isInitiatingMic ? "Checking..." : <><Play className="mr-2 h-5 w-5" /> Start Learning</>}
+                    <Button size="lg" className="w-full text-lg h-12" onClick={handleMicCheck}>
+                        Test Microphone
                     </Button>
                 </CardContent>
             </Card>
         </div>
       )
+  }
+
+  if (stage === 'ready') {
+    return (
+        <div className="fixed inset-0 z-50 bg-background/95 flex items-center justify-center p-4">
+            <Card className="max-w-md w-full border-2 shadow-xl">
+                <CardContent className="p-8 flex flex-col items-center gap-6 text-center">
+                    <div className="rounded-full bg-green-100 p-6">
+                        <CheckCircle className="h-12 w-12 text-green-600" />
+                    </div>
+                    <div className="space-y-2">
+                        <h2 className="text-2xl font-bold">Microphone Ready!</h2>
+                        <p className="text-muted-foreground">Listen to the audio and repeat what you hear.</p>
+                    </div>
+                    <Button size="lg" className="w-full text-lg h-12" onClick={() => setStage('playing')}>
+                        <Play className="mr-2 h-5 w-5" /> Start Learning
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+    )
   }
 
   return (

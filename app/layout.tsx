@@ -3,12 +3,11 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "@/lib/providers";
 import { cn } from "@/lib/utils";
-import { MainLayout } from "@/components/layout/main-layout";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Speak King Korean",
+  title: "LMS MVP",
   description: "Speaking-focused Learning Management System",
 };
 
@@ -24,9 +23,7 @@ export default function RootLayout({
           inter.variable
         )}>
         <Providers>
-          <MainLayout>
-            {children}
-          </MainLayout>
+          {children}
         </Providers>
       </body>
     </html>

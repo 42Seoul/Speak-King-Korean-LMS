@@ -1,3 +1,5 @@
+import { Header } from "@/components/shared/header"
+
 export default function StudentLayout({
   children,
 }: {
@@ -5,9 +7,10 @@ export default function StudentLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <div className="flex-1 container py-6">
+      <Header />
+      <main className="flex-1 container py-6">
         {children}
-      </div>
+      </main>
     </div>
   )
 }

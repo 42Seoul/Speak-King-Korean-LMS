@@ -1,0 +1,5 @@
+# 파일명: .gitignore
+.env
+__pycache__/
+*.pyc
+zep-png-2398f04b792f.json
