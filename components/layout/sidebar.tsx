@@ -39,7 +39,7 @@ export function Sidebar({ role }: SidebarProps) {
       {/* Logo */}
       <div className="h-14 flex items-center px-6 border-b">
         <Link href={role === 'teacher' ? "/management/dashboard" : "/dashboard"} className="font-bold text-xl flex items-center gap-2">
-            <span className="text-primary">LMS</span> MVP
+            <span className="text-primary">Speak King</span> Korean
         </Link>
       </div>
 

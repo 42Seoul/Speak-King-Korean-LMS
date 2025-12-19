@@ -49,7 +49,7 @@ export function Header() {
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-6">
             <Link href={role === 'teacher' ? "/management/dashboard" : "/dashboard"} className="font-bold text-lg hidden md:block">
-              LMS MVP
+              Speak King Korean
             </Link>
 
             {/* Teacher Navigation */}

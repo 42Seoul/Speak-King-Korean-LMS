@@ -29,7 +29,7 @@ export default async function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <h1 className="text-4xl font-bold mb-4">Speaking King Korean LMS</h1>
+      <h1 className="text-4xl font-bold mb-4">Speak King Korean</h1>
       <p className="text-xl mb-8">Fast, repetitive speaking practice.</p>
       
       <div className="flex gap-4">

@@ -1,4 +1,4 @@
-# LMS MVP QA 테스트 체크리스트
+# Speak King Korean QA 테스트 체크리스트
 
 ## 1. 회원 및 계정 (Auth & Account)
 - [ ] **소셜 로그인:** Google 계정으로 로그인 및 회원가입이 정상적으로 되는가?
