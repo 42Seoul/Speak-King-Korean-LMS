@@ -49,8 +49,8 @@ export function MobileNav({ role }: MobileNavProps) {
               )}
             >
               <div className="relative">
-                  <Icon className={cn("h-5 w-5", item.activeColor && isActive ? item.activeColor : "")} />
-                  {item.badge && pendingCount > 0 && (
+                  <Icon className={cn("h-5 w-5", (item as any).activeColor && isActive ? (item as any).activeColor : "")} />
+                  {(item as any).badge && pendingCount > 0 && (
                       <span className="absolute -top-1 -right-2 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border border-background">
                         {pendingCount}
                       </span>

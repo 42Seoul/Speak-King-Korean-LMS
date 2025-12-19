@@ -1,0 +1,3283 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.claude/
+  settings.local.json
+public/
+  elevenlabs.html
+  google.html
+  index.html
+src/
+  server.js
+.env.example
+google-credentials.json
+package.json
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".claude/settings.local.json">
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(mkdir:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.cloud.google.com)",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(npm start)",
+      "Bash(pkill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
+</file>
+
+<file path="public/elevenlabs.html">
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한국어 학습 문장 오디오 생성기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+        }
+        
+        .input-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            resize: vertical;
+        }
+        
+        .button-group {
+            margin-top: 1rem;
+            text-align: center;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            margin-top: 2rem;
+        }
+        
+        .sentence-item {
+            background: white;
+            margin-bottom: 1rem;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .sentence-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .sentence-number {
+            background: #3498db;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .download-btn {
+            background: #27ae60;
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+        
+        .download-btn:hover {
+            background: #219a52;
+        }
+        
+        .play-btn {
+            background: #f39c12;
+            font-size: 14px;
+            padding: 8px 16px;
+            margin-left: 8px;
+        }
+        
+        .play-btn:hover {
+            background: #e67e22;
+        }
+        
+        .play-btn.playing {
+            background: #e74c3c;
+        }
+        
+        .play-btn.playing:hover {
+            background: #c0392b;
+        }
+        
+        .button-group-result {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .text-row {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 5px;
+        }
+        
+        .original { background-color: #fff3cd; }
+        .corrected { background-color: #d4edda; }
+        .translation { background-color: #e2e3e5; }
+        
+        .label {
+            font-weight: bold;
+            color: #666;
+            display: inline-block;
+            width: 80px;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 0.5rem;
+            border-radius: 5px;
+            margin-top: 0.5rem;
+        }
+        
+        .download-all {
+            background: #e74c3c;
+            margin-top: 1rem;
+        }
+        
+        .download-all:hover {
+            background: #c0392b;
+        }
+        
+        .voice-settings {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .setting-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        select, input[type="range"] {
+            padding: 0.5rem;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .range-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .range-value {
+            background: #f8f9fa;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            min-width: 40px;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .progress-container {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #3498db;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>한국어 학습 문장 오디오 생성기</h1>
+            <p>텍스트를 입력하면 맞춤법 교정, 번역, 음성 변환을 제공합니다</p>
+        </header>
+        
+        <div class="voice-settings">
+            <h2>음성 설정</h2>
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <label class="setting-label" for="voiceSelect">음성 선택</label>
+                    <select id="voiceSelect">
+                        <option value="">로딩 중...</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label" for="modelSelect">모델 선택</label>
+                    <select id="modelSelect">
+                        <option value="">로딩 중...</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label" for="speedRange">속도 (0.7x - 1.2x)</label>
+                    <div class="range-container">
+                        <input type="range" id="speedRange" min="0.7" max="1.2" step="0.05" value="1.0">
+                        <span class="range-value" id="speedValue">1.00x</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label" for="stabilityRange">안정성 (0.0 - 1.0)</label>
+                    <div class="range-container">
+                        <input type="range" id="stabilityRange" min="0.0" max="1.0" step="0.1" value="0.5">
+                        <span class="range-value" id="stabilityValue">0.5</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label" for="similarityRange">유사성 (0.0 - 1.0)</label>
+                    <div class="range-container">
+                        <input type="range" id="similarityRange" min="0.0" max="1.0" step="0.1" value="0.5">
+                        <span class="range-value" id="similarityValue">0.5</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <h2>문장 입력</h2>
+            <textarea id="sentenceInput" placeholder="한국어 문장들을 입력하세요. 각 문장은 새 줄에 입력해주세요.
+
+예시:
+안녕 하세요 저는 학교에 감니다
+한국어 공부가 재미 있어요
+오늘 날씨가 좋네요"></textarea>
+            
+            <div class="button-group">
+                <button id="processBtn" onclick="processSentences()">문장 처리하기</button>
+                <button id="clearBtn" onclick="clearAll()">초기화</button>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>문장을 처리 중입니다... 잠시만 기다려주세요.</p>
+        </div>
+        
+        <div id="progress" class="progress-container">
+            <div>
+                <strong>처리 진행률</strong>
+                <span id="progressText">0 / 0</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        let processedData = [];
+        let voicesData = null;
+        
+        // 페이지 로드 시 음성 목록 로드
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadVoices();
+            setupRangeSliders();
+        });
+        
+        async function loadVoices() {
+            try {
+                const response = await fetch('/api/voices');
+                voicesData = await response.json();
+                
+                // 음성 드롭다운 채우기
+                const voiceSelect = document.getElementById('voiceSelect');
+                voiceSelect.innerHTML = '<option value="">기본 음성</option>';
+                voicesData.voices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.value = voice.id;
+                    option.textContent = voice.name;
+                    voiceSelect.appendChild(option);
+                });
+                
+                // 모델 드롭다운 채우기
+                const modelSelect = document.getElementById('modelSelect');
+                modelSelect.innerHTML = '';
+                voicesData.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = `${model.name} - ${model.description}`;
+                    if (model.id === 'eleven_multilingual_v2') {
+                        option.selected = true;
+                    }
+                    modelSelect.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('음성 목록 로드 실패:', error);
+                document.getElementById('voiceSelect').innerHTML = '<option value="">음성 로드 실패</option>';
+                document.getElementById('modelSelect').innerHTML = '<option value="eleven_multilingual_v2">기본 모델</option>';
+            }
+        }
+        
+        function setupRangeSliders() {
+            const speedRange = document.getElementById('speedRange');
+            const speedValue = document.getElementById('speedValue');
+            const stabilityRange = document.getElementById('stabilityRange');
+            const stabilityValue = document.getElementById('stabilityValue');
+            const similarityRange = document.getElementById('similarityRange');
+            const similarityValue = document.getElementById('similarityValue');
+            
+            speedRange.addEventListener('input', () => {
+                speedValue.textContent = parseFloat(speedRange.value).toFixed(2) + 'x';
+            });
+            
+            stabilityRange.addEventListener('input', () => {
+                stabilityValue.textContent = stabilityRange.value;
+            });
+            
+            similarityRange.addEventListener('input', () => {
+                similarityValue.textContent = similarityRange.value;
+            });
+        }
+        
+        function getVoiceOptions() {
+            return {
+                voiceId: document.getElementById('voiceSelect').value || undefined,
+                modelId: document.getElementById('modelSelect').value || 'eleven_multilingual_v2',
+                speed: parseFloat(document.getElementById('speedRange').value),
+                stability: parseFloat(document.getElementById('stabilityRange').value),
+                similarityBoost: parseFloat(document.getElementById('similarityRange').value)
+            };
+        }
+        
+        async function processSentences() {
+            const input = document.getElementById('sentenceInput').value.trim();
+            if (!input) {
+                alert('문장을 입력해주세요.');
+                return;
+            }
+            
+            const sentences = input.split('\n').filter(s => s.trim());
+            if (sentences.length === 0) {
+                alert('유효한 문장을 입력해주세요.');
+                return;
+            }
+            
+            const voiceOptions = getVoiceOptions();
+            
+            document.getElementById('processBtn').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('progress').style.display = 'block';
+            document.getElementById('results').innerHTML = '';
+            
+            // 진행률 초기화
+            updateProgress(0, sentences.length);
+            
+            try {
+                const response = await fetch('/api/process-sentences', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        rawSentences: sentences,
+                        voiceOptions: voiceOptions 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('서버 오류가 발생했습니다.');
+                }
+                
+                processedData = await response.json();
+                updateProgress(sentences.length, sentences.length);
+                displayResults(processedData);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('처리 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                document.getElementById('processBtn').disabled = false;
+                document.getElementById('loading').style.display = 'none';
+                setTimeout(() => {
+                    document.getElementById('progress').style.display = 'none';
+                }, 2000);
+            }
+        }
+        
+        function updateProgress(current, total) {
+            const percentage = total > 0 ? (current / total) * 100 : 0;
+            document.getElementById('progressText').textContent = `${current} / ${total}`;
+            document.getElementById('progressFill').style.width = percentage + '%';
+        }
+        
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            let html = '<h2>처리 결과</h2>';
+            
+            data.forEach(item => {
+                html += `
+                    <div class="sentence-item">
+                        <div class="sentence-header">
+                            <span class="sentence-number">문장 ${item.id}</span>
+                            ${!item.error ? `
+                                <div class="button-group-result">
+                                    <button class="play-btn" onclick="playAudio(${item.id}, '${item.binaryData}')" id="playBtn_${item.id}">▶ 재생</button>
+                                    <button class="download-btn" onclick="downloadAudio(${item.id}, '${item.audioFileName}', '${item.binaryData}')">다운로드</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="text-row original">
+                            <span class="label">원문:</span> ${item.original}
+                        </div>
+                        
+                        <div class="text-row corrected">
+                            <span class="label">교정:</span> ${item.corrected}
+                        </div>
+                        
+                        <div class="text-row translation">
+                            <span class="label">번역:</span> ${item.translation}
+                        </div>
+                        
+                        ${item.error ? `<div class="error">오류: ${item.error}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            if (data.some(item => !item.error)) {
+                html += '<div style="text-align: center;"><button class="download-all" onclick="downloadAllAudio()">모든 오디오 ZIP 다운로드</button></div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        let currentlyPlaying = null;
+        
+        function playAudio(id, binaryData) {
+            try {
+                const playBtn = document.getElementById(`playBtn_${id}`);
+                
+                // 이미 재생 중인 다른 오디오가 있으면 정지
+                if (currentlyPlaying && currentlyPlaying !== id) {
+                    stopCurrentAudio();
+                }
+                
+                // 현재 오디오가 재생 중이면 정지
+                if (currentlyPlaying === id) {
+                    stopCurrentAudio();
+                    return;
+                }
+                
+                const audioBlob = base64ToBlob(binaryData, 'audio/mpeg');
+                const url = URL.createObjectURL(audioBlob);
+                const audio = new Audio(url);
+                
+                // 재생 시작
+                audio.play();
+                currentlyPlaying = id;
+                playBtn.textContent = '⏹ 정지';
+                playBtn.classList.add('playing');
+                
+                // 재생 완료 시 버튼 상태 초기화
+                audio.addEventListener('ended', () => {
+                    resetPlayButton(id);
+                    URL.revokeObjectURL(url);
+                });
+                
+                // 에러 처리
+                audio.addEventListener('error', () => {
+                    alert('오디오 재생 중 오류가 발생했습니다.');
+                    resetPlayButton(id);
+                    URL.revokeObjectURL(url);
+                });
+                
+                // 현재 오디오 객체 저장
+                window[`audio_${id}`] = audio;
+                
+            } catch (error) {
+                alert('오디오 재생 중 오류가 발생했습니다.');
+                console.error('Play audio error:', error);
+            }
+        }
+        
+        function stopCurrentAudio() {
+            if (currentlyPlaying) {
+                const audio = window[`audio_${currentlyPlaying}`];
+                if (audio) {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }
+                resetPlayButton(currentlyPlaying);
+            }
+        }
+        
+        function resetPlayButton(id) {
+            const playBtn = document.getElementById(`playBtn_${id}`);
+            if (playBtn) {
+                playBtn.textContent = '▶ 재생';
+                playBtn.classList.remove('playing');
+            }
+            currentlyPlaying = null;
+        }
+        
+        function downloadAudio(id, fileName, binaryData) {
+            try {
+                const audioBlob = base64ToBlob(binaryData, 'audio/mpeg');
+                const url = URL.createObjectURL(audioBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('오디오 다운로드 중 오류가 발생했습니다.');
+            }
+        }
+        
+        async function downloadAllAudio() {
+            const validItems = processedData.filter(item => !item.error);
+            if (validItems.length === 0) {
+                alert('다운로드할 오디오 파일이 없습니다.');
+                return;
+            }
+
+            try {
+                const zip = new JSZip();
+                
+                // ZIP 파일에 모든 오디오 파일 추가
+                validItems.forEach(item => {
+                    const audioBlob = base64ToBlob(item.binaryData, 'audio/mpeg');
+                    zip.file(item.audioFileName, audioBlob);
+                });
+                
+                // 문장 정보를 담은 텍스트 파일도 추가
+                let textContent = '한국어 학습 문장 목록\n';
+                textContent += '='.repeat(50) + '\n\n';
+                validItems.forEach(item => {
+                    textContent += `${item.id}. ${item.audioFileName}\n`;
+                    textContent += `   원문: ${item.original}\n`;
+                    textContent += `   교정: ${item.corrected}\n`;
+                    textContent += `   번역: ${item.translation}\n\n`;
+                });
+                
+                zip.file('sentences.txt', textContent);
+                
+                // ZIP 파일 생성 및 다운로드
+                const zipBlob = await zip.generateAsync({type: 'blob'});
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `korean_sentences_${new Date().getTime()}.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                console.error('ZIP 생성 오류:', error);
+                alert('ZIP 파일 생성 중 오류가 발생했습니다.');
+            }
+        }
+        
+        function base64ToBlob(base64, mimeType) {
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: mimeType });
+        }
+        
+        function clearAll() {
+            document.getElementById('sentenceInput').value = '';
+            document.getElementById('results').innerHTML = '';
+            processedData = [];
+        }
+    </script>
+</body>
+</html>
+</file>
+
+<file path="public/google.html">
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Cloud TTS - 한국어 학습 음성 생성기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #4285f4, #34a853);
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+            position: relative;
+        }
+        
+        .back-button {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .back-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .service-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .voice-settings {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .voice-groups {
+            margin-bottom: 2rem;
+        }
+        
+        .voice-group {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        
+        .voice-group-header {
+            background: linear-gradient(45deg, #4285f4, #34a853);
+            color: white;
+            padding: 1rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .voice-group-header.quality-6 { background: linear-gradient(45deg, #8e44ad, #e74c3c, #f39c12); }
+        .voice-group-header.quality-5 { background: linear-gradient(45deg, #ff6b6b, #ee5a24); }
+        .voice-group-header.quality-4 { background: linear-gradient(45deg, #4285f4, #34a853); }
+        .voice-group-header.quality-3 { background: linear-gradient(45deg, #95a5a6, #7f8c8d); }
+        
+        .voice-group-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .quality-stars {
+            font-size: 0.9rem;
+        }
+        
+        .pricing-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.2rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        
+        .voice-group-content {
+            padding: 1rem;
+            display: none;
+        }
+        
+        .voice-group-content.active {
+            display: block;
+        }
+        
+        .voice-group-description {
+            color: #666;
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+        
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
+        }
+        
+        .voice-option {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 5px;
+            padding: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .voice-option:hover {
+            border-color: #4285f4;
+            background: #f8f9ff;
+        }
+        
+        .voice-option.selected {
+            border-color: #4285f4;
+            background: #e3f2fd;
+        }
+        
+        .voice-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .voice-name {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .voice-gender {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .preview-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        
+        .preview-btn:hover {
+            background: #3367d6;
+        }
+        
+        .pricing-info {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .pricing-title {
+            font-weight: bold;
+            color: #2e7d32;
+            margin-bottom: 0.5rem;
+        }
+        
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .setting-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        select, input[type="range"], textarea {
+            padding: 0.5rem;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .range-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .range-value {
+            background: #f8f9fa;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            min-width: 60px;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .ssml-section {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .ssml-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #ddd;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle-switch.active {
+            background: #4caf50;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+        
+        .ssml-textarea {
+            width: 100%;
+            min-height: 100px;
+            margin-top: 0.5rem;
+            font-family: monospace;
+            display: none;
+        }
+        
+        .ssml-textarea.active {
+            display: block;
+        }
+        
+        .ssml-help {
+            font-size: 12px;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        
+        .input-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            resize: vertical;
+        }
+        
+        .button-group {
+            margin-top: 1rem;
+            text-align: center;
+        }
+        
+        button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background: #3367d6;
+        }
+        
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            margin: 2rem 0;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4285f4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress-container {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4285f4, #34a853);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .results {
+            margin-top: 2rem;
+        }
+        
+        .sentence-item {
+            background: white;
+            margin-bottom: 1rem;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .sentence-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .sentence-number {
+            background: #4285f4;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .button-group-result {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .play-btn {
+            background: #ff9800;
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+        
+        .play-btn:hover {
+            background: #f57c00;
+        }
+        
+        .play-btn.playing {
+            background: #f44336;
+        }
+        
+        .download-btn {
+            background: #4caf50;
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+        
+        .download-btn:hover {
+            background: #45a049;
+        }
+        
+        .download-all {
+            background: #ff5722;
+            margin-top: 1rem;
+        }
+        
+        .download-all:hover {
+            background: #e64a19;
+        }
+        
+        .text-row {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 5px;
+        }
+        
+        .original { background-color: #fff3cd; }
+        .corrected { background-color: #d4edda; }
+        .translation { background-color: #e2e3e5; }
+        
+        .label {
+            font-weight: bold;
+            color: #666;
+            display: inline-block;
+            width: 80px;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 0.5rem;
+            border-radius: 5px;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-button">← 메인으로</a>
+            <div class="service-badge">Google Cloud TTS</div>
+            <h1>Google 음성 합성 서비스</h1>
+            <p>구글의 Neural2 & WaveNet 기술로 자연스러운 한국어 음성을 생성하세요</p>
+        </header>
+        
+        <div class="voice-settings">
+            <h2>🎛️ Google TTS 설정</h2>
+            
+            <!-- 가격 정보 -->
+            <div class="pricing-info">
+                <div class="pricing-title">💰 Google TTS 가격 안내</div>
+                <div>
+                    <strong>무료 할당량:</strong> 월 100만 문자 (WaveNet/Neural2), 월 400만 문자 (Standard)<br>
+                    <strong>유료 요금:</strong> WaveNet/Neural2 $16/100만자, Standard $4/100만자
+                </div>
+            </div>
+            
+            <!-- 음성 그룹 선택 -->
+            <div class="voice-groups">
+                <h3>🎭 음성 모델 선택</h3>
+                <div id="voiceGroupsContainer">
+                    <div class="loading">음성 목록을 불러오는 중...</div>
+                </div>
+            </div>
+            
+            <div class="settings-grid">
+                
+                <div class="setting-group">
+                    <label class="setting-label" for="audioEncoding">오디오 형식</label>
+                    <select id="audioEncoding">
+                        <option value="MP3">MP3 (권장)</option>
+                        <option value="WAV">WAV (고품질)</option>
+                        <option value="OGG">OGG (압축)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label" for="speakingRate">말하기 속도 (0.25x - 4.0x)</label>
+                    <div class="range-container">
+                        <input type="range" id="speakingRate" min="0.25" max="4.0" step="0.25" value="1.0">
+                        <span class="range-value" id="speakingRateValue">1.0x</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label" for="pitch">음높이 (-20 ~ +20)</label>
+                    <div class="range-container">
+                        <input type="range" id="pitch" min="-20" max="20" step="1" value="0">
+                        <span class="range-value" id="pitchValue">0</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label" for="volumeGain">볼륨 (-96dB ~ +16dB)</label>
+                    <div class="range-container">
+                        <input type="range" id="volumeGain" min="-96" max="16" step="1" value="0">
+                        <span class="range-value" id="volumeGainValue">0dB</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SSML/프롬프트 섹션 -->
+            <div class="ssml-section" id="advancedSection" style="display: none;">
+                <!-- SSML 모드 (Neural2, WaveNet, Standard용) -->
+                <div id="ssmlMode" style="display: none;">
+                    <div class="ssml-toggle">
+                        <div class="toggle-switch" id="ssmlToggle">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <label><strong>고급 SSML 모드</strong> (감정, 강조, 일시정지 등)</label>
+                    </div>
+                    <textarea id="ssmlText" class="ssml-textarea" placeholder="예시:
+<speak>
+  안녕하세요! <break time='1s'/>
+  <emphasis level='strong'>중요한</emphasis> 내용입니다.
+  <prosody rate='slow' pitch='+2st'>천천히 높은 톤으로</prosody>
+</speak>"></textarea>
+                    <div class="ssml-help">
+                        SSML 태그: &lt;break time='1s'/&gt; (일시정지), &lt;emphasis&gt; (강조), &lt;prosody rate='slow'&gt; (속도/음높이)
+                    </div>
+                </div>
+
+                <!-- 프롬프트 모드 (Gemini용) -->
+                <div id="promptMode" style="display: none;">
+                    <label><strong>🎭 음성 프롬프트 (선택사항)</strong></label>
+                    <textarea id="promptText" class="ssml-textarea active" placeholder="자연어로 음성 스타일을 지시하세요. 비워두면 기본 음성으로 생성됩니다.
+
+예시:
+- 기쁘고 활기찬 톤으로 말해주세요
+- 차분하고 진지한 목소리로 천천히 읽어주세요
+- 흥분된 듯한 톤으로 빠르게 말해주세요
+- 따뜻하고 친근한 목소리로 읽어주세요
+- 신비롭고 속삭이는 듯한 목소리로 말해주세요"></textarea>
+                    <div class="ssml-help">
+                        💡 Gemini는 자연어 프롬프트로 음성의 스타일, 톤, 감정, 속도를 제어할 수 있습니다.
+                        구체적으로 원하는 느낌을 설명하면 더 정확한 결과를 얻을 수 있습니다.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <h2>📝 문장 입력</h2>
+            <textarea id="sentenceInput" placeholder="한국어 문장들을 입력하세요. 각 문장은 새 줄에 입력해주세요.
+
+예시:
+안녕하세요. 저는 한국어를 배우고 있습니다.
+오늘 날씨가 정말 좋네요!
+구글 TTS로 자연스러운 음성을 만들어보세요."></textarea>
+            
+            <div class="button-group">
+                <button id="processBtn" onclick="processSentences()">🎵 음성 생성하기</button>
+                <button id="clearBtn" onclick="clearAll()">🗑️ 초기화</button>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Google TTS로 음성을 생성하고 있습니다...</p>
+        </div>
+        
+        <div id="progress" class="progress-container">
+            <div>
+                <strong>처리 진행률</strong>
+                <span id="progressText">0 / 0</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        let processedData = [];
+        let voicesData = null;
+        let currentlyPlaying = null;
+        
+        // 페이지 로드 시 음성 목록 로드
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadVoices();
+            setupControls();
+        });
+        
+        let selectedVoiceId = 'Puck'; // Gemini 기본 음성
+        
+        async function loadVoices() {
+            try {
+                const response = await fetch('/api/google-voices');
+                voicesData = await response.json();
+                
+                renderVoiceGroups();
+                
+            } catch (error) {
+                console.error('음성 목록 로드 실패:', error);
+                document.getElementById('voiceGroupsContainer').innerHTML = 
+                    '<div class="error">음성 목록을 불러올 수 없습니다.</div>';
+            }
+        }
+        
+        function renderVoiceGroups() {
+            const container = document.getElementById('voiceGroupsContainer');
+            
+            if (!voicesData.voiceGroups) {
+                container.innerHTML = '<div class="error">음성 데이터가 없습니다.</div>';
+                return;
+            }
+            
+            let html = '';
+            
+            Object.keys(voicesData.voiceGroups).forEach(groupKey => {
+                const group = voicesData.voiceGroups[groupKey];
+                const maxStars = 6; // Gemini는 quality 6까지
+                const qualityStars = '★'.repeat(group.quality) + '☆'.repeat(Math.max(0, maxStars - group.quality));
+                
+                html += `
+                    <div class="voice-group">
+                        <div class="voice-group-header quality-${group.quality}" onclick="toggleGroup('${groupKey}')">
+                            <div class="voice-group-title">
+                                <span>${group.title}</span>
+                                <span class="quality-stars">${qualityStars}</span>
+                            </div>
+                            <span class="pricing-badge">${getPricingText(group.pricing)}</span>
+                        </div>
+                        <div class="voice-group-content" id="group-${groupKey}">
+                            <div class="voice-group-description">${group.description}</div>
+                            <div class="voice-grid">
+                                ${group.voices.map(voice => `
+                                    <div class="voice-option ${voice.id === selectedVoiceId ? 'selected' : ''}"
+                                         onclick="selectVoice('${voice.id}')">
+                                        <div class="voice-info">
+                                            <div class="voice-name">${voice.name}</div>
+                                            <div class="voice-gender">${voice.gender === 'FEMALE' ? '여성' : voice.gender === 'MALE' ? '남성' : voice.description || '중립'}</div>
+                                        </div>
+                                        <button class="preview-btn" onclick="previewVoice('${voice.id}', event)">미리듣기</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+
+            // Gemini 그룹을 기본으로 열기
+            document.getElementById('group-gemini').classList.add('active');
+
+            // 기본 음성(Puck)에 대한 UI 업데이트
+            updateAdvancedSection();
+        }
+        
+        function getPricingText(pricing) {
+            switch(pricing) {
+                case 'ultra': return '울트라';
+                case 'premium': return '프리미엄';
+                case 'high': return '고가';
+                case 'low': return '저가';
+                default: return pricing;
+            }
+        }
+        
+        function toggleGroup(groupKey) {
+            const content = document.getElementById(`group-${groupKey}`);
+            content.classList.toggle('active');
+        }
+        
+        function selectVoice(voiceId) {
+            // 이전 선택 해제
+            document.querySelectorAll('.voice-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // 새 선택 적용
+            event.target.closest('.voice-option').classList.add('selected');
+            selectedVoiceId = voiceId;
+
+            console.log(`Selected voice: ${voiceId}`);
+
+            // 선택한 음성이 Gemini인지 확인하고 UI 전환
+            updateAdvancedSection();
+        }
+
+        function updateAdvancedSection() {
+            const advancedSection = document.getElementById('advancedSection');
+            const ssmlMode = document.getElementById('ssmlMode');
+            const promptMode = document.getElementById('promptMode');
+
+            // Gemini 음성인지 확인
+            const isGeminiVoice = selectedVoiceId && !selectedVoiceId.includes('ko-KR-');
+
+            if (isGeminiVoice) {
+                // Gemini: 프롬프트 모드 표시
+                advancedSection.style.display = 'block';
+                ssmlMode.style.display = 'none';
+                promptMode.style.display = 'block';
+            } else if (selectedVoiceId && selectedVoiceId.includes('ko-KR-')) {
+                // Google TTS (Neural2, WaveNet, Standard): SSML 모드 표시
+                advancedSection.style.display = 'block';
+                ssmlMode.style.display = 'block';
+                promptMode.style.display = 'none';
+            } else {
+                // 음성 미선택 시 숨김
+                advancedSection.style.display = 'none';
+            }
+        }
+        
+        async function previewVoice(voiceId, event) {
+            event.stopPropagation();
+
+            const button = event.target;
+            const originalText = button.textContent;
+            const isGeminiVoice = !voiceId.includes('ko-KR-');
+
+            try {
+                button.textContent = '생성중...';
+                button.disabled = true;
+
+                let audioData;
+
+                if (isGeminiVoice) {
+                    // Gemini 음성: process-sentences 엔드포인트 사용
+                    const voiceOptions = {
+                        voiceName: voiceId,
+                        modelName: 'gemini-2.5-pro-tts',
+                        voicePrompt: null,
+                        languageCode: 'ko-KR',
+                        audioEncoding: 'MP3'
+                    };
+
+                    const response = await fetch('/api/google-process-sentences', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            rawSentences: ["안녕하세요. 이것은 음성 미리보기입니다."],
+                            voiceOptions: voiceOptions
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('미리보기 생성 실패');
+                    }
+
+                    const results = await response.json();
+                    if (results[0] && results[0].binaryData) {
+                        audioData = results[0].binaryData;
+                    } else if (results[0] && results[0].error) {
+                        throw new Error(results[0].error);
+                    } else {
+                        throw new Error('오디오 데이터 없음');
+                    }
+                } else {
+                    // Google TTS 음성: preview 엔드포인트 사용
+                    const response = await fetch('/api/google-preview', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            voiceId: voiceId,
+                            previewText: "안녕하세요. 이것은 음성 미리보기입니다."
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('미리보기 생성 실패');
+                    }
+
+                    const result = await response.json();
+                    audioData = result.audioData;
+                }
+
+                // 오디오 재생
+                const audioBlob = base64ToBlob(audioData, 'audio/mpeg');
+                const url = URL.createObjectURL(audioBlob);
+                const audio = new Audio(url);
+
+                // 현재 재생 중인 오디오가 있으면 정지
+                if (currentlyPlaying) {
+                    stopCurrentAudio();
+                }
+
+                button.textContent = '재생중...';
+                audio.play();
+
+                audio.addEventListener('ended', () => {
+                    button.textContent = originalText;
+                    button.disabled = false;
+                    URL.revokeObjectURL(url);
+                });
+
+                audio.addEventListener('error', () => {
+                    button.textContent = originalText;
+                    button.disabled = false;
+                    URL.revokeObjectURL(url);
+                    alert('오디오 재생 중 오류가 발생했습니다.');
+                });
+
+            } catch (error) {
+                console.error('Preview error:', error);
+                alert('음성 미리보기 중 오류가 발생했습니다: ' + error.message);
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+        
+        function setupControls() {
+            // 슬라이더 이벤트 설정
+            const speakingRate = document.getElementById('speakingRate');
+            const speakingRateValue = document.getElementById('speakingRateValue');
+            const pitch = document.getElementById('pitch');
+            const pitchValue = document.getElementById('pitchValue');
+            const volumeGain = document.getElementById('volumeGain');
+            const volumeGainValue = document.getElementById('volumeGainValue');
+            
+            speakingRate.addEventListener('input', () => {
+                speakingRateValue.textContent = speakingRate.value + 'x';
+            });
+            
+            pitch.addEventListener('input', () => {
+                pitchValue.textContent = pitch.value;
+            });
+            
+            volumeGain.addEventListener('input', () => {
+                volumeGainValue.textContent = volumeGain.value + 'dB';
+            });
+            
+            // SSML 토글 설정
+            const ssmlToggle = document.getElementById('ssmlToggle');
+            const ssmlTextarea = document.getElementById('ssmlText');
+            
+            ssmlToggle.addEventListener('click', () => {
+                ssmlToggle.classList.toggle('active');
+                ssmlTextarea.classList.toggle('active');
+            });
+        }
+        
+        function getVoiceOptions() {
+            const voiceName = selectedVoiceId || 'ko-KR-Neural2-A';
+            const isGeminiVoice = !voiceName.includes('ko-KR-');
+
+            if (isGeminiVoice) {
+                // Gemini 음성: 프롬프트 모드
+                const promptText = document.getElementById('promptText').value.trim();
+
+                return {
+                    voiceName: voiceName,
+                    modelName: 'gemini-2.5-pro-tts',
+                    voicePrompt: promptText || null,
+                    languageCode: 'ko-KR',
+                    audioEncoding: 'MP3'
+                };
+            } else {
+                // Google TTS 음성: SSML 모드
+                const ssmlToggle = document.getElementById('ssmlToggle');
+                const ssmlText = document.getElementById('ssmlText').value.trim();
+
+                return {
+                    voiceName: voiceName,
+                    audioEncoding: document.getElementById('audioEncoding').value || 'MP3',
+                    speakingRate: parseFloat(document.getElementById('speakingRate').value),
+                    pitch: parseFloat(document.getElementById('pitch').value),
+                    volumeGainDb: parseFloat(document.getElementById('volumeGain').value),
+                    languageCode: 'ko-KR',
+                    ssmlGender: selectedVoiceId && (selectedVoiceId.includes('B') || selectedVoiceId.includes('D')) ? 'MALE' : 'FEMALE',
+                    ssmlText: ssmlToggle.classList.contains('active') && ssmlText ? ssmlText : null
+                };
+            }
+        }
+        
+        async function processSentences() {
+            const input = document.getElementById('sentenceInput').value.trim();
+            if (!input) {
+                alert('문장을 입력해주세요.');
+                return;
+            }
+            
+            const sentences = input.split('\n').filter(s => s.trim());
+            if (sentences.length === 0) {
+                alert('유효한 문장을 입력해주세요.');
+                return;
+            }
+            
+            const voiceOptions = getVoiceOptions();
+            
+            document.getElementById('processBtn').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('progress').style.display = 'block';
+            document.getElementById('results').innerHTML = '';
+            
+            updateProgress(0, sentences.length);
+            
+            try {
+                const response = await fetch('/api/google-process-sentences', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        rawSentences: sentences,
+                        voiceOptions: voiceOptions 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('서버 오류가 발생했습니다.');
+                }
+                
+                processedData = await response.json();
+                updateProgress(sentences.length, sentences.length);
+                displayResults(processedData);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('처리 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                document.getElementById('processBtn').disabled = false;
+                document.getElementById('loading').style.display = 'none';
+                setTimeout(() => {
+                    document.getElementById('progress').style.display = 'none';
+                }, 2000);
+            }
+        }
+        
+        function updateProgress(current, total) {
+            const percentage = total > 0 ? (current / total) * 100 : 0;
+            document.getElementById('progressText').textContent = `${current} / ${total}`;
+            document.getElementById('progressFill').style.width = percentage + '%';
+        }
+        
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            let html = '<h2>🎵 처리 결과</h2>';
+            
+            data.forEach(item => {
+                html += `
+                    <div class="sentence-item">
+                        <div class="sentence-header">
+                            <span class="sentence-number">문장 ${item.id}</span>
+                            ${!item.error ? `
+                                <div class="button-group-result">
+                                    <button class="play-btn" onclick="playAudio(${item.id}, '${item.binaryData}')" id="playBtn_${item.id}">▶ 재생</button>
+                                    <button class="download-btn" onclick="downloadAudio(${item.id}, '${item.audioFileName}', '${item.binaryData}')">다운로드</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="text-row original">
+                            <span class="label">원문:</span> ${item.original}
+                        </div>
+                        
+                        <div class="text-row corrected">
+                            <span class="label">교정:</span> ${item.corrected}
+                        </div>
+                        
+                        <div class="text-row translation">
+                            <span class="label">번역:</span> ${item.translation}
+                        </div>
+                        
+                        ${item.error ? `<div class="error">오류: ${item.error}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            if (data.some(item => !item.error)) {
+                html += '<div style="text-align: center;"><button class="download-all" onclick="downloadAllAudio()">모든 오디오 ZIP 다운로드</button></div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function playAudio(id, binaryData) {
+            try {
+                const playBtn = document.getElementById(`playBtn_${id}`);
+                
+                if (currentlyPlaying && currentlyPlaying !== id) {
+                    stopCurrentAudio();
+                }
+                
+                if (currentlyPlaying === id) {
+                    stopCurrentAudio();
+                    return;
+                }
+                
+                const audioBlob = base64ToBlob(binaryData, 'audio/mpeg');
+                const url = URL.createObjectURL(audioBlob);
+                const audio = new Audio(url);
+                
+                audio.play();
+                currentlyPlaying = id;
+                playBtn.textContent = '⏹ 정지';
+                playBtn.classList.add('playing');
+                
+                audio.addEventListener('ended', () => {
+                    resetPlayButton(id);
+                    URL.revokeObjectURL(url);
+                });
+                
+                audio.addEventListener('error', () => {
+                    alert('오디오 재생 중 오류가 발생했습니다.');
+                    resetPlayButton(id);
+                    URL.revokeObjectURL(url);
+                });
+                
+                window[`audio_${id}`] = audio;
+                
+            } catch (error) {
+                alert('오디오 재생 중 오류가 발생했습니다.');
+                console.error('Play audio error:', error);
+            }
+        }
+        
+        function stopCurrentAudio() {
+            if (currentlyPlaying) {
+                const audio = window[`audio_${currentlyPlaying}`];
+                if (audio) {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }
+                resetPlayButton(currentlyPlaying);
+            }
+        }
+        
+        function resetPlayButton(id) {
+            const playBtn = document.getElementById(`playBtn_${id}`);
+            if (playBtn) {
+                playBtn.textContent = '▶ 재생';
+                playBtn.classList.remove('playing');
+            }
+            currentlyPlaying = null;
+        }
+        
+        function downloadAudio(id, fileName, binaryData) {
+            try {
+                const audioBlob = base64ToBlob(binaryData, 'audio/mpeg');
+                const url = URL.createObjectURL(audioBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('오디오 다운로드 중 오류가 발생했습니다.');
+            }
+        }
+        
+        async function downloadAllAudio() {
+            const validItems = processedData.filter(item => !item.error);
+            if (validItems.length === 0) {
+                alert('다운로드할 오디오 파일이 없습니다.');
+                return;
+            }
+
+            try {
+                const zip = new JSZip();
+                
+                validItems.forEach(item => {
+                    const audioBlob = base64ToBlob(item.binaryData, 'audio/mpeg');
+                    zip.file(item.audioFileName, audioBlob);
+                });
+                
+                let textContent = 'Google TTS 한국어 학습 문장 목록\n';
+                textContent += '='.repeat(50) + '\n\n';
+                validItems.forEach(item => {
+                    textContent += `${item.id}. ${item.audioFileName}\n`;
+                    textContent += `   원문: ${item.original}\n`;
+                    textContent += `   교정: ${item.corrected}\n`;
+                    textContent += `   번역: ${item.translation}\n\n`;
+                });
+                
+                zip.file('sentences.txt', textContent);
+                
+                const zipBlob = await zip.generateAsync({type: 'blob'});
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `google_tts_korean_sentences_${new Date().getTime()}.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                console.error('ZIP 생성 오류:', error);
+                alert('ZIP 파일 생성 중 오류가 발생했습니다.');
+            }
+        }
+        
+        function base64ToBlob(base64, mimeType) {
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: mimeType });
+        }
+        
+        function clearAll() {
+            document.getElementById('sentenceInput').value = '';
+            document.getElementById('results').innerHTML = '';
+            processedData = [];
+        }
+    </script>
+</body>
+</html>
+</file>
+
+<file path="public/index.html">
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한국어 학습 음성 생성기 - 서비스 선택</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .service-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .service-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            border-radius: 20px 20px 0 0;
+        }
+        
+        .elevenlabs-card::before {
+            background: linear-gradient(90deg, #ff6b6b, #ee5a24);
+        }
+        
+        .google-card::before {
+            background: linear-gradient(90deg, #4285f4, #34a853, #fbbc05, #ea4335);
+        }
+        
+        .service-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .elevenlabs-icon {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+        
+        .google-icon {
+            background: linear-gradient(45deg, #4285f4, #34a853);
+            color: white;
+        }
+        
+        .service-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        
+        .service-description {
+            font-size: 1rem;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+        
+        .service-features {
+            list-style: none;
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+        
+        .service-features li {
+            padding: 0.5rem 0;
+            color: #555;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+        
+        .service-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .service-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            font-weight: bold;
+        }
+        
+        .service-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .elevenlabs-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        }
+        
+        .google-button {
+            background: linear-gradient(45deg, #4285f4, #34a853);
+        }
+        
+        .badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #e74c3c;
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .new-badge {
+            background: #e74c3c;
+        }
+        
+        .premium-badge {
+            background: #f39c12;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: white;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 768px) {
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .service-card {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>한국어 학습 음성 생성기</h1>
+            <p class="subtitle">고품질 AI 음성으로 한국어 학습을 더욱 효과적으로</p>
+        </header>
+        
+        <div class="services-grid">
+            <!-- ElevenLabs Card -->
+            <div class="service-card elevenlabs-card" onclick="selectService('elevenlabs')">
+                <div class="badge premium-badge">PREMIUM</div>
+                <div class="service-icon elevenlabs-icon">🎙️</div>
+                <h2 class="service-title">ElevenLabs</h2>
+                <p class="service-description">
+                    세계 최고 품질의 AI 음성 생성 서비스. 자연스럽고 감정이 풍부한 음성을 제공합니다.
+                </p>
+                <ul class="service-features">
+                    <li>초고품질 자연스러운 음성</li>
+                    <li>다양한 음성 스타일 선택</li>
+                    <li>실시간 음성 속도 조절</li>
+                    <li>70개 이상 언어 지원</li>
+                    <li>감정 표현 및 억양 조절</li>
+                </ul>
+                <a href="elevenlabs.html" class="service-button elevenlabs-button">ElevenLabs로 시작하기</a>
+            </div>
+            
+            <!-- Google TTS Card -->
+            <div class="service-card google-card" onclick="selectService('google')">
+                <div class="badge new-badge">NEW</div>
+                <div class="service-icon google-icon">🌐</div>
+                <h2 class="service-title">Google Cloud TTS</h2>
+                <p class="service-description">
+                    구글의 강력한 클라우드 기반 음성 합성 기술. 안정적이고 경제적인 서비스를 제공합니다.
+                </p>
+                <ul class="service-features">
+                    <li>WaveNet & Neural2 고품질 음성</li>
+                    <li>SSML 마크업 지원</li>
+                    <li>경제적인 가격 정책</li>
+                    <li>구글 클라우드 신뢰성</li>
+                    <li>커스텀 음성 모델 지원</li>
+                </ul>
+                <a href="google.html" class="service-button google-button">Google TTS로 시작하기</a>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2024 한국어 학습 음성 생성기. AI 기술로 더 나은 학습 경험을 제공합니다.</p>
+        </footer>
+    </div>
+    
+    <script>
+        function selectService(service) {
+            // 서비스 선택 저장
+            localStorage.setItem('preferredTTSService', service);
+            
+            // 페이지 이동 (클릭 이벤트가 a 태그로 처리됨)
+            console.log(`Selected service: ${service}`);
+        }
+        
+        // 페이지 로드 시 이전 선택 표시
+        document.addEventListener('DOMContentLoaded', () => {
+            const preferred = localStorage.getItem('preferredTTSService');
+            if (preferred) {
+                console.log(`Previously selected: ${preferred}`);
+            }
+        });
+    </script>
+</body>
+</html>
+</file>
+
+<file path="src/server.js">
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+const path = require('path');
+const textToSpeech = require('@google-cloud/text-to-speech');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../public')));
+
+const spellCheck = async (text) => {
+  // 맞춤법 검사 비활성화 - 타임아웃 오류로 인해 원본 텍스트 반환
+  console.log('[Spell Check] Skipping spell check due to timeout issues');
+  return text;
+};
+
+const translateText = async (text, targetLang = 'en', retryCount = 0) => {
+  const maxRetries = 2;
+  
+  // 첫 번째 API: MyMemory
+  try {
+    const response = await axios.post('https://api.mymemory.translated.net/get', null, {
+      params: {
+        q: text,
+        langpair: 'ko|en'
+      },
+      timeout: 5000
+    });
+    
+    const translatedText = response.data.responseData.translatedText;
+    if (translatedText && translatedText.toLowerCase() !== text.toLowerCase()) {
+      return translatedText;
+    }
+  } catch (error) {
+    console.warn('MyMemory translation failed:', error.message);
+  }
+
+  // 대체 API: LibreTranslate (무료)
+  try {
+    const response = await axios.post('https://libretranslate.de/translate', {
+      q: text,
+      source: 'ko',
+      target: 'en',
+      format: 'text'
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 5000
+    });
+    
+    if (response.data.translatedText) {
+      return response.data.translatedText;
+    }
+  } catch (error) {
+    console.warn('LibreTranslate failed:', error.message);
+  }
+
+  // 마지막 대체: 간단한 로컬 처리
+  try {
+    const response = await axios.get('https://api.mymemory.translated.net/get', {
+      params: {
+        q: text,
+        langpair: 'ko|en'
+      },
+      timeout: 3000
+    });
+    
+    return response.data.responseData.translatedText || text;
+  } catch (error) {
+    console.error('All translation services failed:', error.message);
+    return `[번역 실패] ${text}`;
+  }
+};
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Google Cloud TTS 클라이언트 초기화
+let googleTTSClient = null;
+let googleAPIKey = null;
+let useRestAPI = false;
+
+const initGoogleTTS = () => {
+  try {
+    // 여러 인증 방법 시도
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      // 방법 1: 서비스 계정 키 파일
+      googleTTSClient = new textToSpeech.TextToSpeechClient({
+        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS
+      });
+      console.log('[Google TTS] Client initialized with service account key');
+      useRestAPI = false;
+    } else if (process.env.GOOGLE_API_KEY) {
+      // 방법 2: API 키 사용 (REST API로 직접 호출)
+      googleAPIKey = process.env.GOOGLE_API_KEY;
+      useRestAPI = true;
+      console.log('[Google TTS] Using REST API with API key');
+    } else if (process.env.GOOGLE_CLOUD_PROJECT) {
+      // 방법 3: 프로젝트 ID + 기본 인증 (gcloud)
+      googleTTSClient = new textToSpeech.TextToSpeechClient({
+        projectId: process.env.GOOGLE_CLOUD_PROJECT
+      });
+      console.log('[Google TTS] Client initialized with project ID');
+      useRestAPI = false;
+    } else {
+      console.warn('[Google TTS] No credentials found - Google TTS will be disabled');
+      console.warn('Set GOOGLE_APPLICATION_CREDENTIALS, GOOGLE_API_KEY, or GOOGLE_CLOUD_PROJECT in .env');
+    }
+  } catch (error) {
+    console.error('[Google TTS] Failed to initialize:', error.message);
+    googleTTSClient = null;
+  }
+};
+
+// 서버 시작 시 Google TTS 초기화
+initGoogleTTS();
+
+const generateGoogleTTS = async (text, options = {}) => {
+  if (!googleTTSClient && !useRestAPI) {
+    throw new Error('Google TTS not configured. Please set GOOGLE_APPLICATION_CREDENTIALS, GOOGLE_API_KEY, or GOOGLE_CLOUD_PROJECT environment variable.');
+  }
+
+  const {
+    languageCode = 'ko-KR',
+    voiceName = 'ko-KR-Neural2-A',
+    ssmlGender = 'FEMALE',
+    speakingRate = 1.0,
+    pitch = 0.0,
+    volumeGainDb = 0.0,
+    audioEncoding = 'MP3',
+    ssmlText = null
+  } = options;
+
+  console.log(`[Google TTS] Generating audio for: "${text}"`);
+  console.log(`[Google TTS] Settings:`, {
+    languageCode,
+    voiceName,
+    ssmlGender,
+    speakingRate,
+    pitch,
+    volumeGainDb
+  });
+
+  try {
+    const request = {
+      input: ssmlText ? { ssml: ssmlText } : { text: text },
+      voice: {
+        languageCode: languageCode,
+        name: voiceName,
+        ssmlGender: ssmlGender,
+      },
+      audioConfig: {
+        audioEncoding: audioEncoding,
+        speakingRate: Math.max(0.25, Math.min(4.0, speakingRate)),
+        pitch: Math.max(-20.0, Math.min(20.0, pitch)),
+        volumeGainDb: Math.max(-96.0, Math.min(16.0, volumeGainDb)),
+      },
+    };
+
+    if (useRestAPI) {
+      // REST API 사용
+      const response = await axios.post(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${googleAPIKey}`,
+        request,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000
+        }
+      );
+
+      console.log(`[Google TTS] Success (REST API) - Audio received`);
+      return Buffer.from(response.data.audioContent, 'base64');
+    } else {
+      // Node.js 클라이언트 사용
+      const [response] = await googleTTSClient.synthesizeSpeech(request);
+      console.log(`[Google TTS] Success - Audio size: ${response.audioContent.length} bytes`);
+      return response.audioContent;
+    }
+  } catch (error) {
+    console.error('[Google TTS] Error:', error.message);
+    if (error.response?.data) {
+      console.error('[Google TTS] Error details:', JSON.stringify(error.response.data, null, 2));
+    }
+    throw new Error(`Google TTS 생성 실패: ${error.message}`);
+  }
+};
+
+// Gemini TTS는 Google Cloud Text-to-Speech API를 사용하므로 별도 초기화 불필요
+// googleTTSClient를 공유합니다
+console.log('[Gemini TTS] Using Google Cloud Text-to-Speech API (same as Google TTS)');
+
+const generateGeminiTTS = async (text, options = {}) => {
+  // Gemini TTS는 Google Cloud Text-to-Speech API를 사용합니다
+  if (!googleTTSClient && !useRestAPI) {
+    throw new Error('Gemini TTS not configured. Please set Google Cloud credentials.');
+  }
+
+  const {
+    modelName = 'gemini-2.5-pro-tts',
+    voiceName = 'Kore', // Available: Kore, Puck, Charon, Fenrir, Aoede, etc.
+    voicePrompt = null, // Natural language prompt for voice control
+    languageCode = 'ko-KR',
+    audioEncoding = 'MP3'
+  } = options;
+
+  console.log(`[Gemini TTS] Generating audio for: "${text}"`);
+  console.log(`[Gemini TTS] Model: ${modelName}, Voice: ${voiceName}`);
+  if (voicePrompt) {
+    console.log(`[Gemini TTS] Voice Prompt: "${voicePrompt}"`);
+  }
+
+  try {
+    const request = {
+      input: {
+        text: text
+      },
+      voice: {
+        languageCode: languageCode,
+        name: voiceName,
+        modelName: modelName // Gemini 2.5 Pro TTS
+      },
+      audioConfig: {
+        audioEncoding: audioEncoding
+      }
+    };
+
+    // 프롬프트가 있으면 추가
+    if (voicePrompt) {
+      request.input.prompt = voicePrompt;
+    }
+
+    if (useRestAPI) {
+      // REST API 사용
+      const response = await axios.post(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${googleAPIKey}`,
+        request,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000
+        }
+      );
+
+      console.log(`[Gemini TTS] Success (REST API) - Audio received`);
+      return Buffer.from(response.data.audioContent, 'base64');
+    } else {
+      // Node.js 클라이언트 사용
+      const [response] = await googleTTSClient.synthesizeSpeech(request);
+      console.log(`[Gemini TTS] Success - Audio size: ${response.audioContent.length} bytes`);
+      return response.audioContent;
+    }
+  } catch (error) {
+    console.error('[Gemini TTS] Error:', error.message);
+    if (error.response?.data) {
+      console.error('[Gemini TTS] Error details:', JSON.stringify(error.response.data, null, 2));
+    }
+    throw new Error(`Gemini TTS 생성 실패: ${error.message}`);
+  }
+};
+
+const sanitizeTextForTTS = (text) => {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+  
+  // 텍스트 길이 제한 (ElevenLabs는 보통 5000자 제한)
+  let sanitized = text.trim().substring(0, 1000);
+  
+  // 특수 문자 및 HTML 태그 제거
+  sanitized = sanitized.replace(/<[^>]*>/g, ''); // HTML 태그 제거
+  sanitized = sanitized.replace(/[^\p{L}\p{N}\p{P}\p{S}\s]/gu, ''); // 유니코드 기본 문자만 유지
+  
+  // 연속된 공백 정리
+  sanitized = sanitized.replace(/\s+/g, ' ').trim();
+  
+  // 빈 문자열이면 기본 텍스트 반환
+  if (!sanitized) {
+    sanitized = '텍스트를 읽을 수 없습니다.';
+  }
+  
+  return sanitized;
+};
+
+const generateTTS = async (text, options = {}, retryCount = 0) => {
+  const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+  const maxRetries = 3;
+  const {
+    voiceId = process.env.VOICE_ID || 'pNInz6obpgDQGcFmaJgB',
+    modelId = 'eleven_multilingual_v2', // v3에서 v2로 변경 (더 안정적)
+    stability = 0.5,
+    similarityBoost = 0.5,
+    speed = 1.0
+  } = options;
+  
+  if (!ELEVENLABS_API_KEY) {
+    throw new Error('ELEVENLABS_API_KEY environment variable is required');
+  }
+
+  // 텍스트 정제
+  const sanitizedText = sanitizeTextForTTS(text);
+  
+  // 로깅
+  console.log(`[TTS Request] Voice: ${voiceId}, Model: ${modelId}, Speed: ${speed}`);
+  console.log(`[TTS Text] Original: "${text}" -> Sanitized: "${sanitizedText}"`);
+
+  // 요청 데이터 검증
+  if (!sanitizedText) {
+    throw new Error('유효하지 않은 텍스트입니다.');
+  }
+
+  // 파라미터 범위 검증 (ElevenLabs API 실제 제한사항 반영)
+  const originalSpeed = speed;
+  const validatedOptions = {
+    stability: Math.max(0, Math.min(1, stability)),
+    similarity_boost: Math.max(0, Math.min(1, similarityBoost)),
+    speed: Math.max(0.7, Math.min(1.2, speed)) // ElevenLabs API 실제 제한: 0.7-1.2
+  };
+
+  // 속도가 조정되었으면 로그
+  if (originalSpeed !== validatedOptions.speed) {
+    console.log(`[TTS Speed Adjustment] Original: ${originalSpeed} -> Validated: ${validatedOptions.speed}`);
+  }
+
+  const requestData = {
+    text: sanitizedText,
+    model_id: modelId,
+    voice_settings: validatedOptions
+  };
+
+  console.log(`[TTS Payload]`, JSON.stringify(requestData, null, 2));
+
+  try {
+    const response = await axios.post(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      requestData,
+      {
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': ELEVENLABS_API_KEY
+        },
+        responseType: 'arraybuffer',
+        timeout: 30000
+      }
+    );
+
+    console.log(`[TTS Success] Audio generated successfully, size: ${response.data.byteLength} bytes`);
+    return Buffer.from(response.data);
+  } catch (error) {
+    // 상세한 에러 로깅
+    console.error(`[TTS Error] Status: ${error.response?.status}, Message: ${error.message}`);
+    console.error(`[TTS Error] Request URL: https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`);
+    console.error(`[TTS Error] Voice ID: ${voiceId}`);
+    
+    if (error.response?.data) {
+      console.error(`[TTS Error] Response:`, error.response.data.toString());
+    }
+    
+    // 400 에러에 대한 특별 처리
+    if (error.response?.status === 400) {
+      const errorMessage = error.response.data ? error.response.data.toString() : 'Bad Request';
+      console.error(`[TTS 400 Error] Bad request details: ${errorMessage}`);
+      throw new Error(`TTS 요청 오류 (400): 잘못된 파라미터 또는 음성 ID. Voice ID: ${voiceId}, Model: ${modelId}`);
+    }
+    
+    // 429 (Rate Limit) 또는 503 (Service Unavailable) 에러 시 재시도
+    if ((error.response?.status === 429 || error.response?.status === 503) && retryCount < maxRetries) {
+      const waitTime = Math.pow(2, retryCount) * 1000 + Math.random() * 1000;
+      console.warn(`[TTS Retry] Rate limited, retrying in ${waitTime}ms (attempt ${retryCount + 1}/${maxRetries})`);
+      await delay(waitTime);
+      return generateTTS(text, options, retryCount + 1);
+    }
+    
+    throw new Error(`TTS 생성 실패 (${error.response?.status || 'Unknown'}): ${error.message}`);
+  }
+};
+
+// 사용 가능한 음성 목록 조회
+app.get('/api/voices', async (req, res) => {
+  const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+  
+  if (!ELEVENLABS_API_KEY) {
+    return res.status(500).json({ error: 'ELEVENLABS_API_KEY not configured' });
+  }
+
+  try {
+    console.log('[Voices API] Fetching available voices...');
+    const response = await axios.get('https://api.elevenlabs.io/v1/voices', {
+      headers: {
+        'xi-api-key': ELEVENLABS_API_KEY
+      },
+      timeout: 10000
+    });
+
+    console.log(`[Voices API] Found ${response.data.voices?.length || 0} voices`);
+
+    // 실제 사용 가능한 음성들 중에서 선별
+    let availableVoices = [];
+    
+    if (response.data.voices && Array.isArray(response.data.voices)) {
+      // API에서 받은 실제 음성들 중 일부 선택
+      const voiceMap = {};
+      response.data.voices.forEach(voice => {
+        voiceMap[voice.voice_id] = voice;
+      });
+      
+      // 확실히 존재하는 음성들만 사용
+      const knownGoodVoices = [
+        'pNInz6obpgDQGcFmaJgB', // Adam
+        '21m00Tcm4TlvDq8ikWAM', // Rachel  
+        'AZnzlk1XvdvUeBnXmlld', // Domi
+        'EXAVITQu4vr4xnSDxMaL', // Bella
+        'ErXwobaYiN019PkySvjV', // Antoni
+      ];
+      
+      knownGoodVoices.forEach(voiceId => {
+        if (voiceMap[voiceId]) {
+          const voice = voiceMap[voiceId];
+          availableVoices.push({
+            id: voice.voice_id,
+            name: `${voice.name} (${voice.labels?.gender || 'Unknown'})`,
+            language: voice.labels?.language || 'en'
+          });
+        }
+      });
+      
+      // API에서 받은 음성이 없다면 최소한의 기본값 사용
+      if (availableVoices.length === 0) {
+        console.warn('[Voices API] No known voices found, using fallback');
+        availableVoices = [
+          { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Male)', language: 'en' }
+        ];
+      }
+    } else {
+      // API 응답이 예상과 다를 때 기본값 사용
+      availableVoices = [
+        { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Male)', language: 'en' }
+      ];
+    }
+
+    console.log(`[Voices API] Returning ${availableVoices.length} validated voices`);
+
+    res.json({
+      voices: availableVoices,
+      models: [
+        { id: 'eleven_multilingual_v2', name: 'Multilingual v2 (안정적)', description: '안정적, 다국어 지원' },
+        { id: 'eleven_v3', name: 'Eleven v3 (최고품질)', description: '최고품질, 자연스러운 음성' },
+        { id: 'eleven_turbo_v2_5', name: 'Turbo v2.5 (빠름)', description: '빠른 생성, 낮은 지연시간' },
+        { id: 'eleven_flash_v2_5', name: 'Flash v2.5 (초고속)', description: '초고속, 실시간 응용' }
+      ]
+    });
+  } catch (error) {
+    console.error('[Voices API Error]:', error.message);
+    
+    // 에러 시 기본 음성 목록 반환
+    res.json({
+      voices: [
+        { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Male)', language: 'en' }
+      ],
+      models: [
+        { id: 'eleven_multilingual_v2', name: 'Multilingual v2 (안정적)', description: '안정적, 다국어 지원' },
+        { id: 'eleven_v3', name: 'Eleven v3 (최고품질)', description: '최고품질, 자연스러운 음성' }
+      ]
+    });
+  }
+});
+
+// Google TTS 음성 목록 조회
+app.get('/api/google-voices', async (req, res) => {
+  console.log('========================================');
+  console.log('[Google Voices API] 요청 받음');
+  console.log('[Google Voices API] googleTTSClient:', googleTTSClient ? 'OK' : 'NULL');
+  console.log('[Google Voices API] useRestAPI:', useRestAPI);
+  console.log('[Google Voices API] googleAPIKey:', googleAPIKey ? `${googleAPIKey.substring(0, 10)}...` : 'NULL');
+  console.log('========================================');
+
+  if (!googleTTSClient && !useRestAPI) {
+    console.error('[Google Voices API] ❌ ERROR: Google TTS not configured');
+    return res.status(500).json({ error: 'Google TTS not configured' });
+  }
+
+  try {
+    console.log('[Google Voices API] ✅ 음성 목록 조회 시작...');
+
+    let koreanVoices = [];
+
+    if (useRestAPI) {
+      console.log('[Google Voices API] REST API 모드 사용');
+      const url = `https://texttospeech.googleapis.com/v1/voices?key=${googleAPIKey}`;
+      console.log('[Google Voices API] 요청 URL:', url.replace(googleAPIKey, 'API_KEY_HIDDEN'));
+
+      // REST API로 음성 목록 조회
+      const response = await axios.get(url, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000
+      });
+
+      console.log('[Google Voices API] ✅ REST API 응답 받음');
+      console.log('[Google Voices API] 전체 음성 개수:', response.data.voices?.length || 0);
+
+      // 한국어 음성을 타입별로 그룹화
+      koreanVoices = response.data.voices
+        .filter(voice => voice.languageCodes.includes('ko-KR'))
+        .map(voice => ({
+          id: voice.name,
+          name: voice.name.replace('ko-KR-', ''),
+          gender: voice.ssmlGender,
+          type: voice.name.includes('Neural2') ? 'Neural2' :
+                voice.name.includes('Wavenet') ? 'WaveNet' : 'Standard'
+        }));
+    } else {
+      console.log('[Google Voices API] Node.js 클라이언트 모드 사용');
+      // Node.js 클라이언트로 음성 목록 조회
+      const [result] = await googleTTSClient.listVoices({});
+
+      console.log('[Google Voices API] ✅ 클라이언트 응답 받음');
+      console.log('[Google Voices API] 전체 음성 개수:', result.voices?.length || 0);
+
+      // 한국어 음성을 타입별로 그룹화
+      koreanVoices = result.voices
+        .filter(voice => voice.languageCodes.includes('ko-KR'))
+        .map(voice => ({
+          id: voice.name,
+          name: voice.name.replace('ko-KR-', ''),
+          gender: voice.ssmlGender,
+          type: voice.name.includes('Neural2') ? 'Neural2' :
+                voice.name.includes('Wavenet') ? 'WaveNet' : 'Standard'
+        }));
+    }
+
+    console.log(`[Google Voices API] ✅ 한국어 음성 ${koreanVoices.length}개 찾음`);
+
+    // 타입별로 그룹화 (Gemini + Neural2만 유지)
+    const voiceGroups = {
+      gemini: {
+        title: 'Gemini 2.5 Pro (최첨단)',
+        description: '자연어 프롬프팅으로 스타일, 톤, 감정 제어 가능',
+        quality: 6,
+        pricing: 'ultra',
+        supportsPrompting: true,
+        voices: [
+          { id: 'Puck', name: 'Puck', gender: 'NEUTRAL', type: 'Gemini', description: 'Upbeat' },
+          { id: 'Charon', name: 'Charon', gender: 'NEUTRAL', type: 'Gemini', description: 'Deep' },
+          { id: 'Kore', name: 'Kore', gender: 'NEUTRAL', type: 'Gemini', description: 'Firm' },
+          { id: 'Fenrir', name: 'Fenrir', gender: 'NEUTRAL', type: 'Gemini', description: 'Strong' },
+          { id: 'Aoede', name: 'Aoede', gender: 'NEUTRAL', type: 'Gemini', description: 'Melodic' },
+          { id: 'Enceladus', name: 'Enceladus', gender: 'NEUTRAL', type: 'Gemini', description: 'Breathy' },
+          { id: 'Sulafat', name: 'Sulafat', gender: 'NEUTRAL', type: 'Gemini', description: 'Warm' },
+          { id: 'Draco', name: 'Draco', gender: 'NEUTRAL', type: 'Gemini', description: 'Stoic' },
+          { id: 'Despina', name: 'Despina', gender: 'NEUTRAL', type: 'Gemini', description: 'Gentle' },
+          { id: 'Zephyr', name: 'Zephyr', gender: 'NEUTRAL', type: 'Gemini', description: 'Soft' }
+        ]
+      },
+      neural2: {
+        title: 'Neural2 (고품질)',
+        description: 'Custom Voice 기술 기반, 자연스러운 음성',
+        quality: 5,
+        pricing: 'premium',
+        supportsPrompting: false,
+        voices: koreanVoices.filter(v => v.type === 'Neural2')
+      }
+    };
+
+    console.log('[Google Voices API] ✅ 응답 전송 준비 완료');
+    res.json({
+      voiceGroups: voiceGroups,
+      pricing: {
+        freeQuota: {
+          gemini: 'Vertex AI 요금제에 따라 다름',
+          neural2: '월 100만 문자'
+        },
+        paidRates: {
+          gemini: 'Vertex AI 요금제 참고',
+          neural2: '100만 문자당 $16'
+        }
+      },
+      audioEncodings: ['MP3', 'WAV', 'OGG'],
+      speakingRateRange: { min: 0.25, max: 4.0 },
+      pitchRange: { min: -20.0, max: 20.0 },
+      volumeRange: { min: -96.0, max: 16.0 }
+    });
+    console.log('[Google Voices API] ✅✅✅ 응답 전송 완료!');
+  } catch (error) {
+    console.error('========================================');
+    console.error('[Google Voices API] ❌❌❌ ERROR 발생!');
+    console.error('[Google Voices API] Error Type:', error.constructor.name);
+    console.error('[Google Voices API] Error Message:', error.message);
+    console.error('[Google Voices API] Error Stack:', error.stack);
+    if (error.response) {
+      console.error('[Google Voices API] HTTP Status:', error.response.status);
+      console.error('[Google Voices API] Response Data:', JSON.stringify(error.response.data, null, 2));
+    }
+    console.error('========================================');
+    
+    // 에러 시 기본 음성 목록 반환 (2024년 최신 정보 반영)
+    res.json({
+      voiceGroups: {
+        gemini: {
+          title: 'Gemini 2.5 Pro (최첨단)',
+          description: '자연어 프롬프팅으로 스타일, 톤, 감정 제어 가능',
+          quality: 6,
+          pricing: 'ultra',
+          supportsPrompting: true,
+          voices: [
+            { id: 'Puck', name: 'Puck', gender: 'NEUTRAL', type: 'Gemini', description: 'Upbeat' },
+            { id: 'Charon', name: 'Charon', gender: 'NEUTRAL', type: 'Gemini', description: 'Deep' },
+            { id: 'Kore', name: 'Kore', gender: 'NEUTRAL', type: 'Gemini', description: 'Firm' },
+            { id: 'Fenrir', name: 'Fenrir', gender: 'NEUTRAL', type: 'Gemini', description: 'Strong' },
+            { id: 'Aoede', name: 'Aoede', gender: 'NEUTRAL', type: 'Gemini', description: 'Melodic' },
+            { id: 'Enceladus', name: 'Enceladus', gender: 'NEUTRAL', type: 'Gemini', description: 'Breathy' },
+            { id: 'Sulafat', name: 'Sulafat', gender: 'NEUTRAL', type: 'Gemini', description: 'Warm' },
+            { id: 'Draco', name: 'Draco', gender: 'NEUTRAL', type: 'Gemini', description: 'Stoic' },
+            { id: 'Despina', name: 'Despina', gender: 'NEUTRAL', type: 'Gemini', description: 'Gentle' },
+            { id: 'Zephyr', name: 'Zephyr', gender: 'NEUTRAL', type: 'Gemini', description: 'Soft' }
+          ]
+        },
+        neural2: {
+          title: 'Neural2 (고품질)',
+          description: 'Custom Voice 기술 기반, 가장 자연스러운 음성',
+          quality: 5,
+          pricing: 'premium',
+          supportsPrompting: false,
+          voices: [
+            { id: 'ko-KR-Neural2-A', name: 'Neural2-A', gender: 'FEMALE', type: 'Neural2' },
+            { id: 'ko-KR-Neural2-B', name: 'Neural2-B', gender: 'MALE', type: 'Neural2' },
+            { id: 'ko-KR-Neural2-C', name: 'Neural2-C', gender: 'FEMALE', type: 'Neural2' },
+            { id: 'ko-KR-Neural2-D', name: 'Neural2-D', gender: 'MALE', type: 'Neural2' }
+          ]
+        }
+      },
+      pricing: {
+        freeQuota: {
+          gemini: 'Vertex AI 요금제에 따라 다름',
+          neural2: '월 100만 문자'
+        },
+        paidRates: {
+          gemini: 'Vertex AI 요금제 참고',
+          neural2: '100만 문자당 $16'
+        }
+      },
+      audioEncodings: ['MP3', 'WAV', 'OGG'],
+      speakingRateRange: { min: 0.25, max: 4.0 },
+      pitchRange: { min: -20.0, max: 20.0 },
+      volumeRange: { min: -96.0, max: 16.0 }
+    });
+  }
+});
+
+// Google TTS 음성 미리보기
+app.post('/api/google-preview', async (req, res) => {
+  if (!googleTTSClient) {
+    return res.status(500).json({ error: 'Google TTS not configured' });
+  }
+
+  try {
+    const { voiceId, previewText = "안녕하세요. 이것은 음성 미리보기입니다." } = req.body;
+    
+    console.log(`[Google Preview] Voice: ${voiceId}, Text: "${previewText}"`);
+    
+    const audioBuffer = await generateGoogleTTS(previewText, {
+      voiceName: voiceId,
+      speakingRate: 1.0,
+      pitch: 0.0,
+      volumeGainDb: 0.0,
+      audioEncoding: 'MP3'
+    });
+    
+    res.json({
+      success: true,
+      audioData: audioBuffer.toString('base64'),
+      voiceId: voiceId,
+      text: previewText
+    });
+    
+  } catch (error) {
+    console.error('[Google Preview Error]:', error.message);
+    res.status(500).json({ error: `미리보기 생성 실패: ${error.message}` });
+  }
+});
+
+// Google TTS 문장 처리
+app.post('/api/google-process-sentences', async (req, res) => {
+  try {
+    const { rawSentences, voiceOptions = {} } = req.body;
+
+    console.log(`[Google Process] Starting processing for ${rawSentences?.length || 0} sentences`);
+    console.log(`[Google Process] Voice options:`, JSON.stringify(voiceOptions, null, 2));
+
+    if (!Array.isArray(rawSentences) || rawSentences.length === 0) {
+      return res.status(400).json({ error: 'rawSentences must be a non-empty array' });
+    }
+
+    // Gemini 음성인지 Google TTS 음성인지 확인
+    const voiceName = voiceOptions.voiceName || 'ko-KR-Neural2-A';
+    const isGeminiVoice = !voiceName.includes('ko-KR-');
+
+    console.log(`[Google Process] Voice type: ${isGeminiVoice ? 'Gemini' : 'Google TTS'}`);
+
+    // Gemini TTS도 Google Cloud Text-to-Speech API를 사용하므로 동일한 클라이언트 확인
+    if (!googleTTSClient && !useRestAPI) {
+      return res.status(500).json({ error: 'Google TTS not configured' });
+    }
+
+    // 각 문장을 병렬로 처리
+    const processPromises = rawSentences.map(async (sentence, index) => {
+      const trimmedSentence = sentence.trim();
+      if (!trimmedSentence) {
+        return {
+          id: index + 1,
+          original: sentence,
+          corrected: sentence,
+          translation: sentence,
+          audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+          error: 'Empty sentence'
+        };
+      }
+
+      try {
+        // 음성 타입에 따라 적절한 TTS 함수 선택
+        const ttsFunction = isGeminiVoice ?
+          () => generateGeminiTTS(trimmedSentence, {
+            modelName: voiceOptions.modelName || 'gemini-2.5-pro-tts',
+            voiceName: voiceName,
+            voicePrompt: voiceOptions.voicePrompt || null,
+            languageCode: voiceOptions.languageCode || 'ko-KR'
+          }) :
+          () => generateGoogleTTS(trimmedSentence, voiceOptions);
+
+        // 각 작업을 개별적으로 처리
+        const [spellResult, translationResult, ttsResult] = await Promise.allSettled([
+          spellCheck(trimmedSentence),
+          translateText(trimmedSentence),
+          ttsFunction()
+        ]);
+
+        const corrected = spellResult.status === 'fulfilled' ? spellResult.value : trimmedSentence;
+        const translation = translationResult.status === 'fulfilled' ? translationResult.value : `[번역 실패] ${trimmedSentence}`;
+
+        if (ttsResult.status === 'fulfilled') {
+          return {
+            id: index + 1,
+            original: trimmedSentence,
+            corrected: corrected,
+            translation: translation,
+            audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+            binaryData: ttsResult.value.toString('base64')
+          };
+        } else {
+          return {
+            id: index + 1,
+            original: trimmedSentence,
+            corrected: corrected,
+            translation: translation,
+            audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+            error: `오디오 생성 실패: ${ttsResult.reason?.message || 'Unknown error'}`
+          };
+        }
+      } catch (error) {
+        console.error(`Unexpected error processing sentence ${index + 1}:`, error.message);
+        return {
+          id: index + 1,
+          original: trimmedSentence,
+          corrected: trimmedSentence,
+          translation: `[번역 실패] ${trimmedSentence}`,
+          audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+          error: `처리 실패: ${error.message}`
+        };
+      }
+    });
+
+    // 모든 문장 처리 완료까지 대기
+    const results = await Promise.allSettled(processPromises);
+
+    // 결과 정리
+    const finalResults = results.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      } else {
+        return {
+          id: index + 1,
+          original: rawSentences[index],
+          corrected: rawSentences[index],
+          translation: rawSentences[index],
+          audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+          error: `처리 실패: ${result.reason?.message || 'Unknown error'}`
+        };
+      }
+    });
+
+    res.json(finalResults);
+  } catch (error) {
+    console.error('Google TTS Server error:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/process-sentences', async (req, res) => {
+  try {
+    const { rawSentences, voiceOptions = {} } = req.body;
+    
+    console.log(`[Process] Starting processing for ${rawSentences?.length || 0} sentences`);
+    console.log(`[Process] Voice options:`, JSON.stringify(voiceOptions, null, 2));
+    
+    if (!Array.isArray(rawSentences) || rawSentences.length === 0) {
+      return res.status(400).json({ error: 'rawSentences must be a non-empty array' });
+    }
+
+    // 각 문장을 병렬로 처리
+    const processPromises = rawSentences.map(async (sentence, index) => {
+      const trimmedSentence = sentence.trim();
+      if (!trimmedSentence) {
+        return {
+          id: index + 1,
+          original: sentence,
+          corrected: sentence,
+          translation: sentence,
+          audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+          error: 'Empty sentence'
+        };
+      }
+
+      try {
+        // 각 작업을 개별적으로 처리하여 일부 실패해도 다른 작업은 성공할 수 있도록
+        const [spellResult, translationResult, ttsResult] = await Promise.allSettled([
+          spellCheck(trimmedSentence),
+          translateText(trimmedSentence),
+          generateTTS(trimmedSentence, voiceOptions)
+        ]);
+        
+        const corrected = spellResult.status === 'fulfilled' ? spellResult.value : trimmedSentence;
+        const translation = translationResult.status === 'fulfilled' ? translationResult.value : `[번역 실패] ${trimmedSentence}`;
+        
+        if (ttsResult.status === 'fulfilled') {
+          return {
+            id: index + 1,
+            original: trimmedSentence,
+            corrected: corrected,
+            translation: translation,
+            audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+            binaryData: ttsResult.value.toString('base64')
+          };
+        } else {
+          return {
+            id: index + 1,
+            original: trimmedSentence,
+            corrected: corrected,
+            translation: translation,
+            audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+            error: `오디오 생성 실패: ${ttsResult.reason?.message || 'Unknown error'}`
+          };
+        }
+      } catch (error) {
+        console.error(`Unexpected error processing sentence ${index + 1}:`, error.message);
+        return {
+          id: index + 1,
+          original: trimmedSentence,
+          corrected: trimmedSentence,
+          translation: `[번역 실패] ${trimmedSentence}`,
+          audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+          error: `처리 실패: ${error.message}`
+        };
+      }
+    });
+
+    // 모든 문장 처리 완료까지 대기
+    const results = await Promise.allSettled(processPromises);
+    
+    // 결과 정리
+    const finalResults = results.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      } else {
+        return {
+          id: index + 1,
+          original: rawSentences[index],
+          corrected: rawSentences[index],
+          translation: rawSentences[index],
+          audioFileName: `sentence_${String(index + 1).padStart(2, '0')}.mp3`,
+          error: `Processing failed: ${result.reason?.message || 'Unknown error'}`
+        };
+      }
+    });
+
+    res.json(finalResults);
+  } catch (error) {
+    console.error('Server error:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+</file>
+
+<file path=".env.example">
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+VOICE_ID=pNInz6obpgDQGcFmaJgB
+
+# Google Cloud TTS 설정 (둘 중 하나만 설정)
+# 방법 1: 서비스 계정 키 파일 경로
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
+
+# 방법 2: Google Cloud Project ID (기본 인증 사용)
+GOOGLE_CLOUD_PROJECT=your-google-cloud-project-id
+
+PORT=3000
+</file>
+
+<file path="package.json">
+{
+  "name": "nomorerecording",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@google-cloud/text-to-speech": "^6.4.0",
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "form-data": "^4.0.5",
+    "jszip": "^3.10.1",
+    "multer": "^2.0.2"
+  }
+}
+</file>
+
+<file path="README.md">
+# 한국어 학습용 음성 생성 웹서비스
+
+한국어 학습자를 위해 원본 텍스트를 입력받아, 정제된 문장 데이터와 고품질 TTS 오디오 파일을 생성하는 웹서비스입니다.
+
+## 🎵 지원하는 TTS 서비스
+
+### 🎙️ ElevenLabs
+- 초고품질 자연스러운 음성
+- 70개 이상 언어 지원
+- 감정 표현 및 억양 조절
+- 다양한 음성 스타일
+
+### 🌐 Google Cloud TTS
+- Neural2 & WaveNet 고품질 음성
+- SSML 마크업 지원으로 고급 제어
+- 경제적인 가격 정책
+- 안정적인 구글 클라우드 인프라
+
+## 🚀 기능
+
+- **맞춤법 교정**: 부산대학교 맞춤법 검사기 + 대체 서비스
+- **다중 번역**: MyMemory + LibreTranslate API
+- **병렬 처리**: 모든 문장 동시 처리로 빠른 성능
+- **오디오 플레이**: 브라우저에서 바로 재생
+- **ZIP 다운로드**: 모든 오디오 + 텍스트 파일 일괄 다운로드
+- **SSML 지원**: Google TTS에서 고급 음성 제어
+
+## 📦 설치 및 실행
+
+1. **의존성 설치**:
+```bash
+npm install
+```
+
+2. **환경 변수 설정**:
+```bash
+cp .env.example .env
+```
+
+`.env` 파일을 열고 API 키를 설정하세요:
+
+### ElevenLabs 설정 (선택)
+```env
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+VOICE_ID=pNInz6obpgDQGcFmaJgB
+```
+
+### Google Cloud TTS 설정 (선택, 둘 중 하나)
+```env
+# 방법 1: 서비스 계정 키 파일
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+
+# 방법 2: 프로젝트 ID (gcloud auth 사용)
+GOOGLE_CLOUD_PROJECT=your-project-id
+```
+
+3. **서버 실행**:
+```bash
+npm start
+```
+
+4. **브라우저 접속**: `http://localhost:3000`
+
+## 🎛️ API 엔드포인트
+
+### ElevenLabs
+- `GET /api/voices` - 사용 가능한 음성 목록
+- `POST /api/process-sentences` - 문장 처리
+
+### Google TTS
+- `GET /api/google-voices` - Google 음성 목록
+- `POST /api/google-process-sentences` - Google TTS로 문장 처리
+
+### 공통 요청 형식
+```json
+{
+  "rawSentences": [
+    "안녕하세요. 한국어를 배우고 있습니다.",
+    "오늘 날씨가 정말 좋네요!"
+  ],
+  "voiceOptions": {
+    // ElevenLabs 옵션
+    "voiceId": "pNInz6obpgDQGcFmaJgB",
+    "modelId": "eleven_multilingual_v2",
+    "speed": 1.0,
+    "stability": 0.5,
+    "similarityBoost": 0.5,
+    
+    // Google TTS 옵션
+    "voiceName": "ko-KR-Neural2-A",
+    "speakingRate": 1.0,
+    "pitch": 0.0,
+    "volumeGainDb": 0.0,
+    "ssmlText": "<speak>특별한 <emphasis>강조</emphasis></speak>"
+  }
+}
+```
+
+## 🔑 API 키 획득 방법
+
+### ElevenLabs
+1. https://elevenlabs.io/ 가입
+2. 대시보드에서 API 키 발급
+3. `.env`에 `ELEVENLABS_API_KEY` 설정
+
+### Google Cloud TTS
+1. [Google Cloud Console](https://console.cloud.google.com/) 접속
+2. 새 프로젝트 생성 또는 기존 프로젝트 선택
+3. Cloud Text-to-Speech API 활성화
+4. 서비스 계정 키 생성 또는 gcloud CLI 인증
+5. `.env`에 인증 정보 설정
+
+## 🎨 SSML 예제 (Google TTS)
+
+```xml
+<speak>
+  안녕하세요! <break time="1s"/>
+  <emphasis level="strong">중요한</emphasis> 내용입니다.
+  <prosody rate="slow" pitch="+2st">천천히 높은 톤으로</prosody>
+</speak>
+```
+
+## 🛠️ 시스템 요구사항
+
+- Node.js 16.0 이상
+- npm 또는 yarn
+- 인터넷 연결 (외부 API 사용)
+
+## 📊 성능 특징
+
+- **병렬 처리**: 문장별 + API별 동시 처리
+- **에러 복구**: API 실패 시 자동 재시도 및 대체 서비스
+- **메모리 효율**: 스트리밍 처리로 대용량 텍스트 지원
+</file>
+
+</files>

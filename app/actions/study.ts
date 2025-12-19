@@ -125,7 +125,7 @@ export async function deleteStudySet(id: string) {
     }
 
     // Determine Client: Use Admin if Key exists (to bypass RLS), otherwise fallback to User Client
-    let targetClient = supabase
+    let targetClient: any = supabase
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (serviceRoleKey) {

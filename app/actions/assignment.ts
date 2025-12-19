@@ -21,7 +21,7 @@ export async function createAssignments(data: AssignmentData) {
 
   // Check teacher role
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'teacher' && profile?.role !== 'admin') {
+  if ((profile as any)?.role !== 'teacher' && (profile as any)?.role !== 'admin') {
       throw new Error("Only teachers can create assignments")
   }
 
@@ -61,7 +61,7 @@ export async function createAssignments(data: AssignmentData) {
 
   const { error } = await supabase
     .from('assignments')
-    .insert(insertData)
+    .insert(insertData as any)
 
   if (error) {
     console.error("Failed to create assignments:", error)

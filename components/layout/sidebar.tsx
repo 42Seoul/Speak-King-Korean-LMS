@@ -57,12 +57,12 @@ export function Sidebar({ role }: SidebarProps) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:text-primary hover:bg-muted",
                   isActive ? "bg-muted text-primary" : "text-muted-foreground",
-                  item.activeColor && isActive ? item.activeColor : ""
+                  (item as any).activeColor && isActive ? (item as any).activeColor : ""
                 )}
               >
                 <Icon className="h-4 w-4" />
                 <span className="flex-1">{item.label}</span>
-                {item.badge && pendingCount > 0 && (
+                {(item as any).badge && pendingCount > 0 && (
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
                     {pendingCount}
                   </span>
