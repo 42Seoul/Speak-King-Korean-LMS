@@ -1,12 +1,14 @@
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  Users, 
-  Radio, 
-  FileText, 
-  Trophy, 
+import {
+  LayoutDashboard,
+  BookOpen,
+  Users,
+  Radio,
+  FileText,
+  Trophy,
   Settings,
-  Home
+  Home,
+  Globe,
+  Palette
 } from "lucide-react"
 
 export const TEACHER_MENU = [
@@ -48,6 +50,16 @@ export const STUDENT_MENU = [
     label: "Home",
     href: "/dashboard",
     icon: Home
+  },
+  {
+    label: "World",
+    href: "/world",
+    icon: Globe
+  },
+  {
+    label: "Sprite Maker",
+    href: "/sprite-maker",
+    icon: Palette
   },
   {
     label: "Assignments",
