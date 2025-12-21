@@ -236,19 +236,23 @@ export default function SpriteCreatorPage() {
       }
 
       const data = await response.json();
+      console.log("📦 Backend response:", data);
 
       // 서버가 Supabase URL(절대 경로)을 반환하면 그대로 사용, 아니면 로컬 프록시 경로 사용
       const targetSpriteUrl = data.url.startsWith('http')
         ? data.url
         : `${API_BASE_URL}${data.url}`;
 
-      console.log("🎯 Sprite URL to apply:", targetSpriteUrl);
+      console.log("🎯 Sprite URL to save:", targetSpriteUrl);
+      console.log("📝 Nickname to save:", nickname);
       setGeneratedImageUrl(targetSpriteUrl);
 
       // Supabase 프로필에 스프라이트 URL 저장
-      
+
       if (user) {
-        console.log("👤 User ID:", user.id);
+        console.log("💾 Updating profile for user:", user.id);
+        console.log("💾 Data to update:", { sprite_url: targetSpriteUrl, nickname: nickname });
+
         const { data: updatedData, error: updateError } = await supabase
           .from('profiles')
           .update({ sprite_url: targetSpriteUrl, nickname: nickname }) // 닉네임도 함께 업데이트
