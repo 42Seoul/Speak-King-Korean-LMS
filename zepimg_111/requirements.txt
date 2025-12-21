@@ -3,7 +3,7 @@ uvicorn
 python-dotenv
 Pillow
 google-generativeai
-google-cloud-storage
+supabase
 cryptography
 pyasn1
 pyasn1-modules
