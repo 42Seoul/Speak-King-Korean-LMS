@@ -91,10 +91,11 @@ def upload_to_supabase(local_file_path: str, user_id: str, filename: str) -> str
             raise Exception(f"Upload error: {response.error}")
 
         # 공개 URL 가져오기
-        public_url_response = supabase.storage.from_(BUCKET_NAME).get_public_url(file_path)
+        public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(file_path)
 
         print(f"✅ Supabase 업로드 완료: {file_path}")
-        return public_url_response
+        print(f"🌐 공개 URL: {public_url}")
+        return public_url
 
     except Exception as e:
         print(f"❌ Supabase 업로드 실패: {e}")
