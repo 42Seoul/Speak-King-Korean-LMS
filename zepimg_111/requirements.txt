@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-dotenv
+Pillow
+google-generativeai
+google-cloud-storage
+cryptography
+pyasn1
+pyasn1-modules

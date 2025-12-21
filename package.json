@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "backend": "python zepimg_111/api_server.py"
   },
   "dependencies": {
     "@google-cloud/text-to-speech": "^6.4.0",

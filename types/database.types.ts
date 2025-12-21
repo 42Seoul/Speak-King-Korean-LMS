@@ -209,6 +209,7 @@ export type Database = {
           nickname: string | null
           role: string | null
           updated_at: string | null
+          sprite_url: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -219,6 +220,7 @@ export type Database = {
           nickname?: string | null
           role?: string | null
           updated_at?: string | null
+          sprite_url?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -229,6 +231,7 @@ export type Database = {
           nickname?: string | null
           role?: string | null
           updated_at?: string | null
+          sprite_url?: string | null
         }
         Relationships: []
       }
