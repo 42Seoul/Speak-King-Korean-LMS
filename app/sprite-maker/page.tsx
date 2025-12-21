@@ -149,16 +149,27 @@ export default function SpriteCreatorPage() {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
+        console.log('👤 Fetching profile for user:', user.id);
+        const { data, error } = await supabase
           .from('profiles')
           .select('sprite_url, nickname')
           .eq('id', user.id)
           .single();
-        
+
+        if (error) {
+          console.error('❌ Profile fetch error:', error);
+          return;
+        }
+
+        console.log('📦 Profile data:', data);
+
         if (data?.sprite_url) {
+          console.log('🎨 Loading sprite from URL:', data.sprite_url);
           setExistingSpriteUrl(data.sprite_url);
           setGeneratedImageUrl(data.sprite_url); // 초기 로드 시 바로 애니메이션 표시
           if (data.nickname) setNickname(data.nickname);
+        } else {
+          console.log('ℹ️ No sprite_url found in profile');
         }
       }
     };

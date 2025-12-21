@@ -61,9 +61,11 @@ export default function WorldPage() {
     // 유저 데이터 및 프로필 가져오기
     const checkUserAndProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return; 
+      if (!user) return;
 
       setUser(user);
+
+      console.log('👤 World: Fetching profile for user:', user.id);
 
       // 프로필 조회
       const { data: profile, error } = await supabase
@@ -72,13 +74,23 @@ export default function WorldPage() {
         .eq('id', user.id)
         .single();
 
-      if (error || !profile || !profile.sprite_url) {
+      if (error) {
+        console.error('❌ World: Profile fetch error:', error);
+        toast.warning("Error loading profile");
+        return;
+      }
+
+      console.log('📦 World: Profile data:', profile);
+
+      if (!profile || !profile.sprite_url) {
+        console.log('⚠️ World: No sprite_url found');
         toast.warning("Please create a sprite first!");
         router.push('/sprite-maker');
         return;
       }
 
       // 프로필에 저장된 스프라이트 설정
+      console.log('🎨 World: Loading sprite from URL:', profile.sprite_url);
       setCharacterImage(profile.sprite_url);
       setSpriteName(profile.nickname || 'Player');
     };
