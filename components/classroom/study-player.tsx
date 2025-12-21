@@ -174,26 +174,16 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
   const finishSession = async (finalStats: { spoken: number, skipped: number }) => {
     setIsFinished(true)
     stopListening()
-    
+
     try {
         await updateProgress(studySetId, finalStats)
-        
-        // 2. [추가] XP 및 레벨 업데이트 (Dongho 로직 응용)
-        // userId는 컴포넌트 상태에서 가져오거나, updateXP 함수 내에서 user를 가져오도록 수정 가능
-        // 여기서는 userId를 컴포넌트 상태에서 가져옵니다.
-        if (user?.id) {
-          const xpGained = 10; // 세션당 10 XP
-          await updateXP(user.id, xpGained);
-          toast.success(`세션 완료! ${xpGained} XP를 획득했습니다.`);
-        }
 
         if (onSessionComplete) onSessionComplete()
-        // alert("Session Complete! Great job.") // toast로 대체
+        toast.success("세션 완료! 잘하셨습니다.")
         router.push('/dashboard')
     } catch (e) {
-        console.error("Failed to save progress or update XP", e)
-        toast.error("세션 저장 또는 XP 업데이트에 실패했습니다.") // toast로 대체
-        // alert("Session saved locally but failed to sync.") // toast로 대체
+        console.error("Failed to save progress", e)
+        toast.error("세션 저장에 실패했습니다.")
         router.push('/dashboard')
     }
   }
