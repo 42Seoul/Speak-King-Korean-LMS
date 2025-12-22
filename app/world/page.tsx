@@ -450,9 +450,9 @@ const GameCanvas = ({
         <canvas ref={canvasRef} className="block w-full h-full absolute inset-0 z-10" />
 
         {/* 모바일 전용 컨트롤 UI (md 미만에서만 표시) */}
-        <div className="absolute inset-0 z-50 pointer-events-none md:hidden">
+        <div className="absolute inset-0 z-[60] pointer-events-none md:hidden">
             {/* 조이스틱 영역 */}
-            <div className="absolute bottom-8 left-8 pointer-events-auto">
+            <div className="absolute bottom-28 left-8 pointer-events-auto">
                 <div 
                     className="w-32 h-32 bg-black/20 rounded-full backdrop-blur-sm border border-white/20 relative flex items-center justify-center cursor-pointer touch-none"
                     onMouseDown={(e) => {
@@ -479,7 +479,7 @@ const GameCanvas = ({
             </div>
 
             {/* 버튼 영역 (오른쪽 하단) */}
-            <div className="absolute bottom-8 right-8 pointer-events-auto flex items-end gap-3">
+            <div className="absolute bottom-28 right-8 pointer-events-auto flex items-end gap-3">
                 {/* 댄스 버튼 */}
                 <Button 
                     variant="outline"
