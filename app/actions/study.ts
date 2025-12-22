@@ -22,12 +22,14 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
 
   const existing = rawExisting as any
 
+  const newRepeatCount = existing ? (existing.total_repeat_count || 0) + 1 : 1
+
   if (existing) {
     // Update
     await (supabase
       .from('user_study_progress') as any)
       .update({
-        total_repeat_count: (existing.total_repeat_count || 0) + 1,
+        total_repeat_count: newRepeatCount,
         total_speaking_count: (existing.total_speaking_count || 0) + stats.spoken,
         total_skip_count: (existing.total_skip_count || 0) + stats.skipped,
         last_studied_at: new Date().toISOString()
@@ -40,14 +42,36 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
       .insert({
         user_id: user.id,
         study_set_id: studySetId,
-        total_repeat_count: 1,
+        total_repeat_count: newRepeatCount,
         total_speaking_count: stats.spoken,
         total_skip_count: stats.skipped,
         last_studied_at: new Date().toISOString()
       })
   }
 
-    
+  // Check and update assignment completion status
+  const { data: assignments } = await supabase
+    .from('assignments')
+    .select('id, target_count, is_completed')
+    .eq('student_id', user.id)
+    .eq('study_set_id', studySetId)
+    .eq('is_completed', false)
+
+  if (assignments && assignments.length > 0) {
+    // Update assignments that have reached their target
+    const completedAssignmentIds = assignments
+      .filter((assignment: any) => newRepeatCount >= assignment.target_count)
+      .map((assignment: any) => assignment.id)
+
+    if (completedAssignmentIds.length > 0) {
+      await supabase
+        .from('assignments')
+        .update({ is_completed: true })
+        .in('id', completedAssignmentIds)
+
+      revalidatePath('/assignments')
+    }
+  }
 
 revalidatePath('/dashboard')
 
