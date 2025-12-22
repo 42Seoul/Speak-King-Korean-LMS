@@ -50,6 +50,9 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
   }
 
   // Check and update assignment completion status
+  console.log('🔍 [updateProgress] Checking assignments for completion...')
+  console.log(`   User: ${user.id}, Study Set: ${studySetId}, New Repeat Count: ${newRepeatCount}`)
+
   const { data: assignments } = await supabase
     .from('assignments')
     .select('id, target_count, is_completed')
@@ -57,20 +60,36 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
     .eq('study_set_id', studySetId)
     .eq('is_completed', false)
 
+  console.log(`   Found ${assignments?.length || 0} pending assignments:`, assignments)
+
   if (assignments && assignments.length > 0) {
     // Update assignments that have reached their target
     const completedAssignmentIds = assignments
-      .filter((assignment: any) => newRepeatCount >= assignment.target_count)
+      .filter((assignment: any) => {
+        const isComplete = newRepeatCount >= assignment.target_count
+        console.log(`   Assignment ${assignment.id}: ${newRepeatCount} >= ${assignment.target_count} = ${isComplete}`)
+        return isComplete
+      })
       .map((assignment: any) => assignment.id)
 
+    console.log(`   Assignments to mark as complete: ${completedAssignmentIds.length}`, completedAssignmentIds)
+
     if (completedAssignmentIds.length > 0) {
-      await supabase
+      const { error } = await supabase
         .from('assignments')
         .update({ is_completed: true })
         .in('id', completedAssignmentIds)
 
+      if (error) {
+        console.error('   ❌ Failed to update assignments:', error)
+      } else {
+        console.log('   ✅ Successfully marked assignments as complete')
+      }
+
       revalidatePath('/assignments')
     }
+  } else {
+    console.log('   ℹ️ No pending assignments found for this study set')
   }
 
 revalidatePath('/dashboard')
