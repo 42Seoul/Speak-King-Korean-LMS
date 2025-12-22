@@ -103,7 +103,7 @@ export default function WorldPage() {
   };
 
   return (
-    <div className="w-full h-screen relative overflow-hidden bg-gray-100 font-sans">
+    <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-gray-100 font-sans overscroll-none touch-none">
       {/* 맵 레이어 */}
       <div 
         className="absolute inset-0 bg-cover bg-center z-0 transition-all duration-300"
@@ -194,10 +194,6 @@ const GameCanvas = ({
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const charImgRef = useRef<HTMLImageElement | null>(null);
   
-  // 모바일 조이스틱 상태
-  const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
-  const joystickRadius = 35; // 조이스틱 가동 범위
-
   // 게임 상태 (Ref로 관리)
   const gameState = useRef({
     x: typeof window !== 'undefined' ? window.innerWidth / 2 : 400,
@@ -208,6 +204,9 @@ const GameCanvas = ({
     action: 'idle' as keyof typeof ANIMATIONS,
     frameIndex: 0,  // 현재 보여줄 프레임 인덱스
     tick: 0,        // 애니메이션 속도 조절용
+    // Tap to Move 목표 지점
+    targetX: null as number | null,
+    targetY: null as number | null,
   });
 
   const keys = useRef<Record<string, boolean>>({});
@@ -219,6 +218,9 @@ const GameCanvas = ({
         gameState.current.action = 'idle';
       } else {
         gameState.current.action = 'dance';
+        // 춤출 때는 이동 목표 초기화
+        gameState.current.targetX = null;
+        gameState.current.targetY = null;
       }
     }
   }, [danceTrigger]);
@@ -250,6 +252,11 @@ const GameCanvas = ({
     // 키 이벤트 리스너
     const handleDown = (e: KeyboardEvent) => {
       keys.current[e.key] = true;
+      // 키보드 입력이 들어오면 타겟 이동 취소
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        gameState.current.targetX = null;
+        gameState.current.targetY = null;
+      }
       // 화살표 키와 스페이스바 입력 시 브라우저 스크롤 방지
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
         e.preventDefault();
@@ -301,6 +308,7 @@ const GameCanvas = ({
       const speed = 4;
       let isMoving = false;
 
+      // 1-1. 키보드 이동 로직
       if (state.action !== 'dance') {
         if (k['ArrowLeft']) { state.x -= speed; state.direction = 'left'; isMoving = true; }
         if (k['ArrowRight']) { state.x += speed; state.direction = 'right'; isMoving = true; }
@@ -308,13 +316,43 @@ const GameCanvas = ({
         if (k['ArrowDown']) { state.y += speed; state.direction = 'down'; isMoving = true; }
       }
 
+      // 1-2. Tap to Move 이동 로직 (키보드 입력이 없을 때만)
+      if (!isMoving && state.targetX !== null && state.targetY !== null && state.action !== 'dance') {
+         const dx = state.targetX - state.x;
+         const dy = state.targetY - state.y;
+         const dist = Math.sqrt(dx * dx + dy * dy);
+
+         if (dist > speed) {
+            const angle = Math.atan2(dy, dx);
+            state.x += Math.cos(angle) * speed;
+            state.y += Math.sin(angle) * speed;
+            isMoving = true;
+
+            // 방향 설정
+            if (Math.abs(dx) > Math.abs(dy)) {
+                state.direction = dx > 0 ? 'right' : 'left';
+            } else {
+                state.direction = dy > 0 ? 'down' : 'up';
+            }
+         } else {
+            // 도착
+            state.x = state.targetX;
+            state.y = state.targetY;
+            state.targetX = null;
+            state.targetY = null;
+         }
+      }
+
       if (k[' '] && state.z === 0) {
         state.vz = 12;
         state.action = 'jump';
+        // 점프 시 이동 목표 유지 여부는 선택사항 (여기선 유지)
       }
 
       if ((k['z'] || k['Z']) && state.z === 0 && !isMoving) {
         state.action = 'dance';
+        state.targetX = null; // 춤추면 이동 취소
+        state.targetY = null;
       } else if (state.action === 'dance' && (isMoving || state.z > 0)) {
         state.action = 'walk'; 
       }
@@ -344,6 +382,20 @@ const GameCanvas = ({
 
       // --- 2. 렌더링 ---
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 목표 지점 표시 (이동 중일 때만)
+      if (state.targetX !== null && state.targetY !== null) {
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.lineWidth = 2;
+          ctx.arc(state.targetX + (charWidth/2), state.targetY + charHeight, 10 + Math.sin(state.tick * 0.2) * 2, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          ctx.beginPath();
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.arc(state.targetX + (charWidth/2), state.targetY + charHeight, 4, 0, Math.PI * 2);
+          ctx.fill();
+      }
 
       if (isImageLoaded && charImgRef.current) {
         state.tick++;
@@ -408,38 +460,15 @@ const GameCanvas = ({
     return () => cancelAnimationFrame(animationId);
   }, [isImageLoaded, spriteName]); 
 
-  // --- 컨트롤 핸들러 (마우스 & 터치 통합) ---
-  const handleMove = (clientX: number, clientY: number, target: HTMLElement) => {
-    if (!target) return;
-    const rect = target.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
+  // --- Tap to Move 핸들러 ---
+  const handleTap = (clientX: number, clientY: number) => {
+    // 캐릭터의 발 위치(중심 하단)를 기준으로 목표 설정 보정
+    const charWidth = FRAME_WIDTH * 2;
+    const charHeight = FRAME_HEIGHT * 2;
     
-    let x = clientX - centerX;
-    let y = clientY - centerY;
-    
-    const distance = Math.sqrt(x*x + y*y);
-    if (distance > joystickRadius) {
-        const angle = Math.atan2(y, x);
-        x = Math.cos(angle) * joystickRadius;
-        y = Math.sin(angle) * joystickRadius;
-    }
-    
-    setJoystickPos({ x, y });
-    
-    const threshold = 10;
-    keys.current['ArrowRight'] = x > threshold;
-    keys.current['ArrowLeft'] = x < -threshold;
-    keys.current['ArrowDown'] = y > threshold;
-    keys.current['ArrowUp'] = y < -threshold;
-  };
-
-  const handleEnd = () => {
-    setJoystickPos({ x: 0, y: 0 });
-    keys.current['ArrowRight'] = false;
-    keys.current['ArrowLeft'] = false;
-    keys.current['ArrowDown'] = false;
-    keys.current['ArrowUp'] = false;
+    // 클릭한 위치가 캐릭터의 '발' 위치가 되도록 목표 설정
+    gameState.current.targetX = clientX - (charWidth / 2);
+    gameState.current.targetY = clientY - charHeight;
   };
 
   const handleJumpStart = () => { keys.current[' '] = true; };
@@ -449,37 +478,18 @@ const GameCanvas = ({
     <div className="absolute inset-0 w-full h-full touch-none overflow-hidden">
         <canvas ref={canvasRef} className="block w-full h-full absolute inset-0 z-10" />
 
-        {/* 모바일 전용 컨트롤 UI (md 미만에서만 표시) */}
-        <div className="absolute inset-0 z-[200] pointer-events-none md:hidden">
-            {/* 조이스틱 영역 */}
-            <div className="absolute bottom-28 left-8 pointer-events-auto">
-                <div 
-                    className="w-32 h-32 bg-black/20 rounded-full backdrop-blur-sm border border-white/20 relative flex items-center justify-center cursor-pointer touch-none"
-                    onMouseDown={(e) => {
-                        const target = e.currentTarget as HTMLElement;
-                        const moveHandler = (me: MouseEvent) => handleMove(me.clientX, me.clientY, target);
-                        const upHandler = () => {
-                            handleEnd();
-                            window.removeEventListener('mousemove', moveHandler);
-                            window.removeEventListener('mouseup', upHandler);
-                        };
-                        window.addEventListener('mousemove', moveHandler);
-                        window.addEventListener('mouseup', upHandler);
-                        handleMove(e.clientX, e.clientY, target);
-                    }}
-                    onTouchStart={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget)}
-                    onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget)}
-                    onTouchEnd={handleEnd}
-                >
-                    <div 
-                        className="w-12 h-12 bg-white/80 rounded-full shadow-lg absolute pointer-events-none transition-transform duration-75"
-                        style={{ transform: `translate(${joystickPos.x}px, ${joystickPos.y}px)` }}
-                    />
-                </div>
-            </div>
+        {/* 모바일 전용 Tap 영역 및 컨트롤 (md 미만에서만 표시) */}
+        <div className="absolute inset-0 z-[200] md:hidden">
+            {/* 전체 화면 터치 영역 (이동) */}
+            <div 
+                className="absolute inset-0"
+                onClick={(e) => handleTap(e.clientX, e.clientY)}
+            />
 
-            {/* 버튼 영역 (오른쪽 하단) */}
-            <div className="absolute bottom-28 right-8 pointer-events-auto flex items-end gap-3">
+            {/* 버튼 영역 (오른쪽 하단) - 클릭 전파 중단(e.stopPropagation) 필요 */}
+            <div className="absolute bottom-28 right-8 pointer-events-auto flex items-end gap-3"
+                 onClick={(e) => e.stopPropagation()}
+            >
                 {/* 댄스 버튼 */}
                 <Button 
                     variant="outline"
