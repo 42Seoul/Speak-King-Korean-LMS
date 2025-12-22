@@ -9,7 +9,8 @@ import { Play, Mic, MicOff, ChevronRight, CheckCircle, AlertCircle, RefreshCw, V
 import { cn, evaluateSpeech } from "@/lib/utils"
 import { updateProgress } from "@/app/actions/study"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client" // 추가
+import { createClient } from "@/lib/supabase/client"
+import { toast } from "sonner"
 
 export interface StudyItem {
   id: number

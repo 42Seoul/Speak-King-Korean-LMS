@@ -59,7 +59,7 @@ export function AiContentGenerator({ onImport }: AiContentGeneratorProps) {
   const [loadingVoices, setLoadingVoices] = useState(false)
   
   const [inputText, setInputText] = useState("")
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>("gemini-2.5-pro-tts") // Default to Gemini
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>("ko-KR-Neural2-A") // Default to Neural2-A (best quality)
   const [speakingRate, setSpeakingRate] = useState([1.0])
   const [pitch, setPitch] = useState([0])
   const [promptText, setPromptText] = useState("") // For Gemini
@@ -114,16 +114,12 @@ export function AiContentGenerator({ onImport }: AiContentGeneratorProps) {
 
     try {
       // Determine options
-      const isGemini = selectedVoiceId === 'gemini-2.5-pro-tts'
       const voiceOptions = {
         voiceName: selectedVoiceId,
         audioEncoding: 'MP3',
         speakingRate: speakingRate[0],
         pitch: pitch[0],
         languageCode: 'ko-KR',
-        // Gemini specific
-        voicePrompt: isGemini ? promptText : undefined,
-        // Standard specific
         ssmlText: useSSML ? null : null // Currently not exposing complex SSML for list mode
       }
 
@@ -287,40 +283,26 @@ export function AiContentGenerator({ onImport }: AiContentGeneratorProps) {
                         {renderVoiceOptions()}
                     </div>
 
-                    {selectedVoiceId === 'gemini-2.5-pro-tts' ? (
-                        <div className="space-y-2">
-                            <Label>Style Prompt (Gemini)</Label>
-                            <Textarea 
-                                placeholder="e.g. Cheerful and energetic"
-                                value={promptText}
-                                onChange={e => setPromptText(e.target.value)}
-                                className="h-24"
-                            />
+                    <div className="space-y-4">
+                        <div className="flex justify-between">
+                            <Label>Speed ({speakingRate[0]}x)</Label>
                         </div>
-                    ) : (
-                        <>
-                            <div className="space-y-4">
-                                <div className="flex justify-between">
-                                    <Label>Speed ({speakingRate[0]}x)</Label>
-                                </div>
-                                <Slider 
-                                    value={speakingRate} 
-                                    min={0.25} max={4.0} step={0.25} 
-                                    onValueChange={setSpeakingRate}
-                                />
-                            </div>
-                            <div className="space-y-4">
-                                <div className="flex justify-between">
-                                    <Label>Pitch ({pitch[0]})</Label>
-                                </div>
-                                <Slider 
-                                    value={pitch} 
-                                    min={-20} max={20} step={1} 
-                                    onValueChange={setPitch}
-                                />
-                            </div>
-                        </>
-                    )}
+                        <Slider
+                            value={speakingRate}
+                            min={0.25} max={4.0} step={0.25}
+                            onValueChange={setSpeakingRate}
+                        />
+                    </div>
+                    <div className="space-y-4">
+                        <div className="flex justify-between">
+                            <Label>Pitch ({pitch[0]})</Label>
+                        </div>
+                        <Slider
+                            value={pitch}
+                            min={-20} max={20} step={1}
+                            onValueChange={setPitch}
+                        />
+                    </div>
 
                     <Button 
                         className="w-full" 
