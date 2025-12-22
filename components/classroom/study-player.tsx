@@ -90,14 +90,23 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
   useEffect(() => {
     if (stage !== "playing" || isFinished) return
 
+    console.log('[Player] Item change', {
+      currentIndex,
+      currentText: currentItem.text,
+      stage,
+      completedCount
+    })
+
     setFeedback("none")
     setScore(0)
     setCanSkip(false)
+
+    // Critical: Stop listening BEFORE reset to ensure clean state
+    stopListening()
     resetTranscript()
-    stopListening() // This was called here
-    
+
     playAudio()
-  }, [currentIndex, stage, completedCount, isFinished, resetTranscript, stopListening, playAudio])
+  }, [currentIndex, stage, completedCount, isFinished, resetTranscript, stopListening, playAudio, currentItem.text])
 
   // Cleanup on Finish
   useEffect(() => {
@@ -125,17 +134,23 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
   useEffect(() => {
     // Combine finalized text with currently spoken text for instant feedback
     const fullText = (transcript + " " + interimTranscript).trim()
-    
+
     if (!fullText || feedback === 'success' || isFinished) return
 
     const { score: newScore, passed, matchType } = evaluateSpeech(currentItem.text, fullText)
     setScore(newScore)
 
     if (passed) {
-        console.log(`Passed via: ${matchType} (Score: ${newScore}%)`)
+        console.log('[Player] Success!', {
+          matchType,
+          score: newScore,
+          target: currentItem.text,
+          input: fullText,
+          currentIndex
+        })
         setFeedback("success")
         stopListening()
-        
+
         // Dynamic delay based on match type
         // A_contains: Instant (fast) transition for perfect matches
         // B_similarity: Slight delay (500ms) to let user finish speaking or see the score
@@ -144,8 +159,8 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
         setTimeout(() => {
             handleNext("success")
         }, delay)
-    } 
-  }, [transcript, interimTranscript, currentItem.text, feedback, stopListening, isFinished])
+    }
+  }, [transcript, interimTranscript, currentItem.text, feedback, stopListening, isFinished, currentIndex])
 
   // 5. Navigation Logic
   const handleNext = async (result: "success" | "skipped") => {

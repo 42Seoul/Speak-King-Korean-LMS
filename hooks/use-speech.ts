@@ -47,6 +47,12 @@ export const useSpeechToText = () => {
     }
 
     recognition.onresult = (event: any) => {
+      // Guard: Ignore stale events when not actively listening
+      if (!isListeningRef.current) {
+        console.warn('[STT] Ignoring stale onresult - not listening')
+        return
+      }
+
       let sessionFinal = ""
       let sessionInterim = ""
 
@@ -57,6 +63,15 @@ export const useSpeechToText = () => {
           sessionInterim += event.results[i][0].transcript
         }
       }
+
+      console.log('[STT onresult]', {
+        isListening: isListeningRef.current,
+        accumulated: accumulatedRef.current,
+        sessionFinal,
+        sessionInterim,
+        eventLength: event.results.length,
+        timestamp: Date.now()
+      })
 
       currentSessionFinalRef.current = sessionFinal
       setTranscript(accumulatedRef.current + sessionFinal)
@@ -75,11 +90,18 @@ export const useSpeechToText = () => {
     }
 
     recognition.onend = () => {
+      console.log('[STT onend]', {
+        isListening: isListeningRef.current,
+        accumulated: accumulatedRef.current,
+        currentSession: currentSessionFinalRef.current,
+        timestamp: Date.now()
+      })
+
       if (isListeningRef.current) {
         // Accumulate the finalized text from the session that just ended
         accumulatedRef.current += currentSessionFinalRef.current
         currentSessionFinalRef.current = ""
-        
+
         try {
             recognition.start()
         } catch (e) {
@@ -123,15 +145,33 @@ export const useSpeechToText = () => {
   }, [])
 
   const resetTranscript = useCallback(() => {
+    console.log('[STT reset] Before', {
+      transcript,
+      interimTranscript,
+      accumulated: accumulatedRef.current,
+      currentSession: currentSessionFinalRef.current,
+      isListening: isListeningRef.current
+    })
+
+    // Critical: Stop listening FIRST to prevent race conditions
+    isListeningRef.current = false
+
+    // Clear React state
     setTranscript("")
     setInterimTranscript("")
+
+    // Clear refs
     accumulatedRef.current = ""
     currentSessionFinalRef.current = ""
-    
+
     // Force abort to clear browser buffer (Issue 2 fix)
     if (recognitionRef.current) {
         recognitionRef.current.abort()
     }
+
+    setStatus("idle")
+
+    console.log('[STT reset] After - abort called')
   }, [])
 
   return {
