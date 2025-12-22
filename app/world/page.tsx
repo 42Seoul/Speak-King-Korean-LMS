@@ -126,10 +126,11 @@ export default function WorldPage() {
         spriteName={spriteName}
         mapImage={mapImage} 
         danceTrigger={danceTrigger}
+        onDance={handleDanceClick}
       />
 
       {/* UI 컨트롤 패널 */}
-      <Card className="absolute top-4 left-4 z-50 w-64 shadow-xl backdrop-blur-sm bg-background/95 border-border/50">
+      <Card className="absolute top-4 left-4 z-50 w-64 shadow-xl backdrop-blur-sm bg-background/95 border-border/50 hidden md:block">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Gamepad2 className="w-5 h-5" /> World Info
@@ -170,14 +171,33 @@ export default function WorldPage() {
   );
 }
 
+// ... (중략: GameCanvas 컴포넌트 내부 컨트롤러 렌더링 부분으로 이동)
+
+
 // ----------------------------------------------------------------------
 // 게임 로직 및 렌더링 (Canvas) - 기존 로직 유지
 // ----------------------------------------------------------------------
-const GameCanvas = ({ characterImage, spriteName, mapImage, danceTrigger }: { characterImage: string | null, spriteName: string, mapImage: string | null, danceTrigger: number }) => {
+const GameCanvas = ({ 
+    characterImage, 
+    spriteName, 
+    mapImage, 
+    danceTrigger,
+    onDance 
+}: { 
+    characterImage: string | null, 
+    spriteName: string, 
+    mapImage: string | null, 
+    danceTrigger: number,
+    onDance: () => void
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const charImgRef = useRef<HTMLImageElement | null>(null);
   
+  // 모바일 조이스틱 상태
+  const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
+  const joystickRadius = 35; // 조이스틱 가동 범위
+
   // 게임 상태 (Ref로 관리)
   const gameState = useRef({
     x: typeof window !== 'undefined' ? window.innerWidth / 2 : 400,
@@ -230,7 +250,10 @@ const GameCanvas = ({ characterImage, spriteName, mapImage, danceTrigger }: { ch
     // 키 이벤트 리스너
     const handleDown = (e: KeyboardEvent) => {
       keys.current[e.key] = true;
-      if(e.key === ' ') e.preventDefault(); 
+      // 화살표 키와 스페이스바 입력 시 브라우저 스크롤 방지
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+        e.preventDefault();
+      }
     };
     const handleUp = (e: KeyboardEvent) => {
       keys.current[e.key] = false;
@@ -314,8 +337,10 @@ const GameCanvas = ({ characterImage, spriteName, mapImage, danceTrigger }: { ch
       
       if (state.z > 0) state.action = 'jump';
 
-      state.x = Math.max(0, Math.min(canvas.width, state.x));
-      state.y = Math.max(0, Math.min(canvas.height, state.y));
+      const charWidth = FRAME_WIDTH * 2; // SCALE = 2
+      const charHeight = FRAME_HEIGHT * 2;
+      state.x = Math.max(0, Math.min(canvas.width - charWidth, state.x));
+      state.y = Math.max(0, Math.min(canvas.height - charHeight, state.y));
 
       // --- 2. 렌더링 ---
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -383,8 +408,103 @@ const GameCanvas = ({ characterImage, spriteName, mapImage, danceTrigger }: { ch
     return () => cancelAnimationFrame(animationId);
   }, [isImageLoaded, spriteName]); 
 
-  // CSS 수정: absolute inset-0 z-10 추가하여 배경 위에 표시
-  return <canvas ref={canvasRef} className="block w-full h-full absolute inset-0 z-10" />;
+  // --- 컨트롤 핸들러 (마우스 & 터치 통합) ---
+  const handleMove = (clientX: number, clientY: number, target: HTMLElement) => {
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    let x = clientX - centerX;
+    let y = clientY - centerY;
+    
+    const distance = Math.sqrt(x*x + y*y);
+    if (distance > joystickRadius) {
+        const angle = Math.atan2(y, x);
+        x = Math.cos(angle) * joystickRadius;
+        y = Math.sin(angle) * joystickRadius;
+    }
+    
+    setJoystickPos({ x, y });
+    
+    const threshold = 10;
+    keys.current['ArrowRight'] = x > threshold;
+    keys.current['ArrowLeft'] = x < -threshold;
+    keys.current['ArrowDown'] = y > threshold;
+    keys.current['ArrowUp'] = y < -threshold;
+  };
+
+  const handleEnd = () => {
+    setJoystickPos({ x: 0, y: 0 });
+    keys.current['ArrowRight'] = false;
+    keys.current['ArrowLeft'] = false;
+    keys.current['ArrowDown'] = false;
+    keys.current['ArrowUp'] = false;
+  };
+
+  const handleJumpStart = () => { keys.current[' '] = true; };
+  const handleJumpEnd = () => { keys.current[' '] = false; };
+
+  return (
+    <div className="absolute inset-0 w-full h-full touch-none overflow-hidden">
+        <canvas ref={canvasRef} className="block w-full h-full absolute inset-0 z-10" />
+
+        {/* 모바일 전용 컨트롤 UI (md 미만에서만 표시) */}
+        <div className="absolute inset-0 z-50 pointer-events-none md:hidden">
+            {/* 조이스틱 영역 */}
+            <div className="absolute bottom-8 left-8 pointer-events-auto">
+                <div 
+                    className="w-32 h-32 bg-black/20 rounded-full backdrop-blur-sm border border-white/20 relative flex items-center justify-center cursor-pointer touch-none"
+                    onMouseDown={(e) => {
+                        const target = e.currentTarget as HTMLElement;
+                        const moveHandler = (me: MouseEvent) => handleMove(me.clientX, me.clientY, target);
+                        const upHandler = () => {
+                            handleEnd();
+                            window.removeEventListener('mousemove', moveHandler);
+                            window.removeEventListener('mouseup', upHandler);
+                        };
+                        window.addEventListener('mousemove', moveHandler);
+                        window.addEventListener('mouseup', upHandler);
+                        handleMove(e.clientX, e.clientY, target);
+                    }}
+                    onTouchStart={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget)}
+                    onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget)}
+                    onTouchEnd={handleEnd}
+                >
+                    <div 
+                        className="w-12 h-12 bg-white/80 rounded-full shadow-lg absolute pointer-events-none transition-transform duration-75"
+                        style={{ transform: `translate(${joystickPos.x}px, ${joystickPos.y}px)` }}
+                    />
+                </div>
+            </div>
+
+            {/* 버튼 영역 (오른쪽 하단) */}
+            <div className="absolute bottom-8 right-8 pointer-events-auto flex items-end gap-3">
+                {/* 댄스 버튼 */}
+                <Button 
+                    variant="outline"
+                    className="w-16 h-16 rounded-full shadow-xl bg-background/80 backdrop-blur-sm border-2 flex items-center justify-center active:scale-95 transition-all touch-none select-none p-0"
+                    onClick={onDance}
+                >
+                    <span className="text-2xl">💃</span>
+                </Button>
+
+                {/* 점프 버튼 */}
+                <Button 
+                    variant="default"
+                    className="w-20 h-20 rounded-full shadow-xl bg-primary/80 border-2 border-white/20 flex items-center justify-center active:scale-95 transition-all touch-none select-none"
+                    onMouseDown={handleJumpStart}
+                    onMouseUp={handleJumpEnd}
+                    onMouseLeave={handleJumpEnd}
+                    onTouchStart={handleJumpStart}
+                    onTouchEnd={handleJumpEnd}
+                >
+                    <span className="text-lg font-bold text-white">JUMP</span>
+                </Button>
+            </div>
+        </div>
+    </div>
+  );
 };
 
 function World(props: React.ComponentProps<typeof Gamepad2>) {
