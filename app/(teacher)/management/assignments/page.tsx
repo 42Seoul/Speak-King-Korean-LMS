@@ -129,11 +129,13 @@ export default function AssignmentsPage() {
                                               student_name: item.profiles?.nickname || item.profiles?.email || 'Unknown',
                                               study_set_title: item.study_sets?.title || 'Untitled'
                                           }}
+                                          onEditSuccess={fetchAssignments}
                                       />
                                       <DeleteAssignmentButton
                                           assignmentId={item.id}
                                           studentName={item.profiles?.nickname || item.profiles?.email || 'Unknown'}
                                           studySetTitle={item.study_sets?.title || 'Untitled'}
+                                          onDeleteSuccess={fetchAssignments}
                                       />
                                   </div>
                               </td>

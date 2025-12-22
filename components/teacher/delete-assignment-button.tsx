@@ -21,12 +21,14 @@ interface DeleteAssignmentButtonProps {
   assignmentId: string
   studentName: string
   studySetTitle: string
+  onDeleteSuccess?: () => void
 }
 
 export function DeleteAssignmentButton({
   assignmentId,
   studentName,
-  studySetTitle
+  studySetTitle,
+  onDeleteSuccess
 }: DeleteAssignmentButtonProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [open, setOpen] = useState(false)
@@ -37,6 +39,12 @@ export function DeleteAssignmentButton({
       await deleteAssignment(assignmentId)
       toast.success("숙제가 삭제되었습니다.")
       setOpen(false)
+      setIsDeleting(false)
+
+      // Refresh the assignments list immediately
+      if (onDeleteSuccess) {
+        onDeleteSuccess()
+      }
     } catch (e: any) {
       console.error("Failed to delete assignment:", e)
       toast.error(e.message || "숙제 삭제에 실패했습니다.")

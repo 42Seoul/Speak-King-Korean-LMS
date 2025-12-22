@@ -28,9 +28,10 @@ interface EditAssignmentDialogProps {
     student_name: string
     study_set_title: string
   }
+  onEditSuccess?: () => void
 }
 
-export function EditAssignmentDialog({ assignment }: EditAssignmentDialogProps) {
+export function EditAssignmentDialog({ assignment, onEditSuccess }: EditAssignmentDialogProps) {
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -63,6 +64,11 @@ export function EditAssignmentDialog({ assignment }: EditAssignmentDialogProps) 
 
       toast.success("숙제가 수정되었습니다.")
       setOpen(false)
+
+      // Refresh the assignments list immediately
+      if (onEditSuccess) {
+        onEditSuccess()
+      }
     } catch (e: any) {
       console.error("Failed to update assignment:", e)
       toast.error(e.message || "숙제 수정에 실패했습니다.")
