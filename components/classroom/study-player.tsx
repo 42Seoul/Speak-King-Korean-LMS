@@ -162,7 +162,7 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
         
         if (newCount >= targetRepeat) {
             setCompletedCount(newCount)
-            finishSession(newStats)
+            finishSession({ ...newStats, repeats: newCount })
         } else {
             setCompletedCount(newCount)
             setCurrentIndex(0)
@@ -172,7 +172,7 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
     }
   }
 
-  const finishSession = async (finalStats: { spoken: number, skipped: number }) => {
+  const finishSession = async (finalStats: { spoken: number, skipped: number, repeats: number }) => {
     setIsFinished(true)
     stopListening()
 

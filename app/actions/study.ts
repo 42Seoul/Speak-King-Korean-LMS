@@ -5,7 +5,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 
-export async function updateProgress(studySetId: string, stats: { spoken: number, skipped: number }) {
+export async function updateProgress(studySetId: string, stats: { spoken: number, skipped: number, repeats?: number }) {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
   const { data: { user } } = await supabase.auth.getUser()
@@ -21,8 +21,8 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
     .single()
 
   const existing = rawExisting as any
-
-  const newRepeatCount = existing ? (existing.total_repeat_count || 0) + 1 : 1
+  const repeatsToAdd = stats.repeats || 1
+  const newRepeatCount = existing ? (existing.total_repeat_count || 0) + repeatsToAdd : repeatsToAdd
 
   if (existing) {
     // Update
