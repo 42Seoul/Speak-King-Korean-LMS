@@ -5,11 +5,10 @@ import { useSpeechToText } from "@/hooks/use-speech"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Play, Mic, MicOff, ChevronRight, CheckCircle, AlertCircle, RefreshCw, Volume2, Lock, Settings, Trophy } from "lucide-react"
+import { Play, Mic, MicOff, ChevronRight, CheckCircle, AlertCircle, RefreshCw, Volume2, Lock, Trophy } from "lucide-react"
 import { cn, evaluateSpeech } from "@/lib/utils"
 import { updateProgress } from "@/app/actions/study"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
 export interface StudyItem {
@@ -30,27 +29,22 @@ interface StudyPlayerProps {
 
 type SessionStage = "check_mic" | "ready" | "playing"
 
+// Timing Constants
+const SKIP_DELAY_MS = 4000
+const SUCCESS_TRANSITION_DELAY = {
+  PERFECT_MATCH: 100,
+  SIMILARITY_MATCH: 500
+} as const
+
 export default function StudyPlayer({ studySetId, items, targetRepeat, onSessionComplete }: StudyPlayerProps) {
   const router = useRouter()
-  const supabase = createClient() // 추가
-  const [user, setUser] = useState<any>(null) // 추가
-  
+
   // Session State
   const [stage, setStage] = useState<SessionStage>("check_mic")
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [completedCount, setCompletedCount] = useState(0) 
+  const [completedCount, setCompletedCount] = useState(0)
   const [isFinished, setIsFinished] = useState(false)
 
-  useEffect(() => { // 추가
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-      }
-    }
-    getUser()
-  }, [supabase]) // supabase 의존성 추가
-  
   // Item State
   const [isPlaying, setIsPlaying] = useState(false)
   const [canSkip, setCanSkip] = useState(false) 
@@ -60,7 +54,8 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
 
   const { status, transcript, interimTranscript, startListening, stopListening, resetTranscript, error } = useSpeechToText()
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  
+  const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   const currentItem = items[currentIndex]
   const totalItems = items.length
   
@@ -75,8 +70,7 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
 
     if (audioRef.current && currentItem.audio_url) {
       setIsPlaying(true)
-      stopListening() // This was being called here
-      
+
       audioRef.current.src = currentItem.audio_url
       audioRef.current.play()
         .catch(e => {
@@ -84,7 +78,7 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
             setIsPlaying(false)
         })
     }
-  }, [currentItem, isFinished, stopListening]) // stopListening was a dependency
+  }, [currentItem, isFinished])
 
   // 1. Initial Start / Item Change Logic
   useEffect(() => {
@@ -96,6 +90,12 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
       stage,
       completedCount
     })
+
+    // Clear any pending skip timeout from previous item
+    if (skipTimeoutRef.current) {
+      clearTimeout(skipTimeoutRef.current)
+      skipTimeoutRef.current = null
+    }
 
     setFeedback("none")
     setScore(0)
@@ -112,6 +112,13 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
   useEffect(() => {
       if (isFinished) {
           stopListening()
+
+          // Clear any pending skip timeout
+          if (skipTimeoutRef.current) {
+            clearTimeout(skipTimeoutRef.current)
+            skipTimeoutRef.current = null
+          }
+
           if (audioRef.current) {
               audioRef.current.pause()
               audioRef.current.currentTime = 0
@@ -120,17 +127,73 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
   }, [isFinished, stopListening])
 
   // 3. Audio Ended Handler
-  const handleAudioEnded = () => {
+  const handleAudioEnded = useCallback(() => {
     if (isFinished) return
     setIsPlaying(false)
     startListening() // Now safe to start listening after audio is done.
 
-    setTimeout(() => {
-      setCanSkip(true)
-    }, 4000)
-  }
+    // Clear any existing skip timeout before setting a new one
+    if (skipTimeoutRef.current) {
+      clearTimeout(skipTimeoutRef.current)
+    }
 
-  // 4. Evaluation Logic
+    // Set new skip timeout and store the ID
+    skipTimeoutRef.current = setTimeout(() => {
+      setCanSkip(true)
+      skipTimeoutRef.current = null
+    }, SKIP_DELAY_MS)
+  }, [isFinished, startListening])
+
+  // 4. Session Management
+  const finishSession = useCallback(async (finalStats: { spoken: number, skipped: number, repeats: number }) => {
+    setIsFinished(true)
+    stopListening()
+
+    try {
+        await updateProgress(studySetId, finalStats)
+
+        if (onSessionComplete) onSessionComplete()
+        toast.success("세션 완료! 잘하셨습니다.")
+        router.push('/dashboard')
+    } catch (e) {
+        console.error("Failed to save progress", e)
+        toast.error("세션 저장에 실패했습니다.")
+        router.push('/dashboard')
+    }
+  }, [studySetId, onSessionComplete, stopListening, router])
+
+  // 5. Navigation Logic
+  const handleNext = useCallback(async (result: "success" | "skipped") => {
+    if (isFinished) return
+
+    // Clear skip timeout when navigating
+    if (skipTimeoutRef.current) {
+      clearTimeout(skipTimeoutRef.current)
+      skipTimeoutRef.current = null
+    }
+
+    const newStats = {
+        spoken: sessionStats.spoken + (result === "success" ? 1 : 0),
+        skipped: sessionStats.skipped + (result === "skipped" ? 1 : 0)
+    }
+    setSessionStats(newStats)
+
+    if (currentIndex >= items.length - 1) {
+        const newCount = completedCount + 1
+
+        if (newCount >= targetRepeat) {
+            setCompletedCount(newCount)
+            finishSession({ ...newStats, repeats: newCount })
+        } else {
+            setCompletedCount(newCount)
+            setCurrentIndex(0)
+        }
+    } else {
+        setCurrentIndex(prev => prev + 1)
+    }
+  }, [isFinished, sessionStats, currentIndex, items.length, completedCount, targetRepeat, finishSession])
+
+  // 6. Evaluation Logic
   useEffect(() => {
     // Combine finalized text with currently spoken text for instant feedback
     const fullText = (transcript + " " + interimTranscript).trim()
@@ -151,58 +214,25 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
         setFeedback("success")
         stopListening()
 
+        // Clear skip timeout since user succeeded
+        if (skipTimeoutRef.current) {
+          clearTimeout(skipTimeoutRef.current)
+          skipTimeoutRef.current = null
+        }
+        setCanSkip(false) // Explicitly hide skip button on success
+
         // Dynamic delay based on match type
         // A_contains: Instant (fast) transition for perfect matches
-        // B_similarity: Slight delay (500ms) to let user finish speaking or see the score
-        const delay = matchType === 'A_contains' ? 100 : 500
+        // B_similarity: Slight delay to let user finish speaking or see the score
+        const delay = matchType === 'A_contains'
+          ? SUCCESS_TRANSITION_DELAY.PERFECT_MATCH
+          : SUCCESS_TRANSITION_DELAY.SIMILARITY_MATCH
 
         setTimeout(() => {
             handleNext("success")
         }, delay)
     }
-  }, [transcript, interimTranscript, currentItem.text, feedback, stopListening, isFinished, currentIndex])
-
-  // 5. Navigation Logic
-  const handleNext = async (result: "success" | "skipped") => {
-    if (isFinished) return
-
-    const newStats = {
-        spoken: sessionStats.spoken + (result === "success" ? 1 : 0),
-        skipped: sessionStats.skipped + (result === "skipped" ? 1 : 0)
-    }
-    setSessionStats(newStats)
-
-    if (currentIndex >= items.length - 1) {
-        const newCount = completedCount + 1
-        
-        if (newCount >= targetRepeat) {
-            setCompletedCount(newCount)
-            finishSession({ ...newStats, repeats: newCount })
-        } else {
-            setCompletedCount(newCount)
-            setCurrentIndex(0)
-        }
-    } else {
-        setCurrentIndex(prev => prev + 1)
-    }
-  }
-
-  const finishSession = async (finalStats: { spoken: number, skipped: number, repeats: number }) => {
-    setIsFinished(true)
-    stopListening()
-
-    try {
-        await updateProgress(studySetId, finalStats)
-
-        if (onSessionComplete) onSessionComplete()
-        toast.success("세션 완료! 잘하셨습니다.")
-        router.push('/dashboard')
-    } catch (e) {
-        console.error("Failed to save progress", e)
-        toast.error("세션 저장에 실패했습니다.")
-        router.push('/dashboard')
-    }
-  }
+  }, [transcript, interimTranscript, currentItem.text, feedback, stopListening, isFinished, currentIndex, handleNext])
 
   // --- STAGE 1: Mic Check & Error Handling ---
   const handleMicCheck = () => {

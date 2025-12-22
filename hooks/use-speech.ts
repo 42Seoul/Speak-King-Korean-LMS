@@ -79,14 +79,21 @@ export const useSpeechToText = () => {
     }
 
     recognition.onerror = (event: any) => {
-      if (event.error === 'no-speech') return 
-      
+      if (event.error === 'no-speech') return
+
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           setError("permission_denied")
           setStatus("error")
-          isListeningRef.current = false 
+          isListeningRef.current = false
           return
       }
+
+      // Log unexpected errors for debugging
+      console.error('[STT error]', {
+        error: event.error,
+        message: event.message,
+        timestamp: Date.now()
+      })
     }
 
     recognition.onend = () => {
@@ -172,7 +179,7 @@ export const useSpeechToText = () => {
     setStatus("idle")
 
     console.log('[STT reset] After - abort called')
-  }, [])
+  }, [transcript, interimTranscript])
 
   return {
     status,
