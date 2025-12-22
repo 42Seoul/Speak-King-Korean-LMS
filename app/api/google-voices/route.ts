@@ -12,13 +12,6 @@ export async function GET() {
 
     // Group voices by quality/type for the UI
     const voiceGroups: Record<string, any> = {
-      'gemini': {
-        title: 'Gemini 2.5 Pro (Experimental)',
-        quality: 6,
-        pricing: 'free-tier-available',
-        description: 'Latest generative model with natural prosody and context awareness.',
-        voices: []
-      },
       'neural2': {
         title: 'Neural2 (Premium)',
         quality: 5,
@@ -64,18 +57,6 @@ export async function GET() {
          voiceGroups['standard'].voices.push(voiceData);
       }
     });
-    
-    // Manually add Gemini option as it might not be in the standard list listVoices returns depending on the client version/region
-    // Or if it is, we handle it. For now, we mock/add it manually as per requirements implies support.
-    // NOTE: Gemini for TTS is often accessed via specific model endpoints or Vertex AI. 
-    // The requirements mention "Google Cloud TTS (Neural2/Gemini)". 
-    // If the standard client doesn't list it, we add a placeholder for the UI logic.
-    voiceGroups['gemini'].voices.push({
-      id: 'gemini-2.5-pro-tts', // Hypothetical ID or one provided by requirements
-      name: 'Gemini 2.5 Pro',
-      gender: 'NEUTRAL',
-      description: 'Generative AI Voice'
-    });
 
     return NextResponse.json({ voiceGroups });
 
@@ -98,15 +79,6 @@ export async function GET() {
 // Fallback Mock Data for Development without Credentials
 function getMockVoices() {
   return {
-    'gemini': {
-      title: 'Gemini 2.5 Pro (Mock)',
-      quality: 6,
-      pricing: 'free-tier-available',
-      description: 'Mock data: Credentials missing.',
-      voices: [
-        { id: 'gemini-2.5-pro-tts', name: 'Gemini Pro', gender: 'NEUTRAL', languageCodes: ['ko-KR'] }
-      ]
-    },
     'neural2': {
       title: 'Neural2 (Mock)',
       quality: 5,
@@ -114,7 +86,20 @@ function getMockVoices() {
       description: 'Mock data: Credentials missing.',
       voices: [
         { id: 'ko-KR-Neural2-A', name: 'Neural2-A', gender: 'FEMALE', languageCodes: ['ko-KR'] },
+        { id: 'ko-KR-Neural2-B', name: 'Neural2-B', gender: 'FEMALE', languageCodes: ['ko-KR'] },
         { id: 'ko-KR-Neural2-C', name: 'Neural2-C', gender: 'MALE', languageCodes: ['ko-KR'] }
+      ]
+    },
+    'wavenet': {
+      title: 'WaveNet (Mock)',
+      quality: 4,
+      pricing: 'medium',
+      description: 'Mock data: Credentials missing.',
+      voices: [
+        { id: 'ko-KR-Wavenet-A', name: 'Wavenet-A', gender: 'FEMALE', languageCodes: ['ko-KR'] },
+        { id: 'ko-KR-Wavenet-B', name: 'Wavenet-B', gender: 'FEMALE', languageCodes: ['ko-KR'] },
+        { id: 'ko-KR-Wavenet-C', name: 'Wavenet-C', gender: 'MALE', languageCodes: ['ko-KR'] },
+        { id: 'ko-KR-Wavenet-D', name: 'Wavenet-D', gender: 'MALE', languageCodes: ['ko-KR'] }
       ]
     }
   };
