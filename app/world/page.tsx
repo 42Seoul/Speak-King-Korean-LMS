@@ -450,7 +450,7 @@ const GameCanvas = ({
         <canvas ref={canvasRef} className="block w-full h-full absolute inset-0 z-10" />
 
         {/* 모바일 전용 컨트롤 UI (md 미만에서만 표시) */}
-        <div className="absolute inset-0 z-[100] pointer-events-none md:hidden">
+        <div className="absolute inset-0 z-[200] pointer-events-none md:hidden">
             {/* 조이스틱 영역 */}
             <div className="absolute bottom-28 left-8 pointer-events-auto">
                 <div 
