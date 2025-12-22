@@ -1,5 +1,17 @@
-# 파일명: .gitignore
+# 환경 변수
 .env
+!.env.example
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# 임시 파일
+temp_uploads/
+outputs/
+
+# 이전 GCS 인증 파일 (사용 안 함)
 zep-png-2398f04b792f.json

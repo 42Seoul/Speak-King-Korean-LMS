@@ -149,16 +149,27 @@ export default function SpriteCreatorPage() {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
+        console.log('👤 Fetching profile for user:', user.id);
+        const { data, error } = await supabase
           .from('profiles')
           .select('sprite_url, nickname')
           .eq('id', user.id)
           .single();
-        
+
+        if (error) {
+          console.error('❌ Profile fetch error:', error);
+          return;
+        }
+
+        console.log('📦 Profile data:', data);
+
         if (data?.sprite_url) {
+          console.log('🎨 Loading sprite from URL:', data.sprite_url);
           setExistingSpriteUrl(data.sprite_url);
           setGeneratedImageUrl(data.sprite_url); // 초기 로드 시 바로 애니메이션 표시
           if (data.nickname) setNickname(data.nickname);
+        } else {
+          console.log('ℹ️ No sprite_url found in profile');
         }
       }
     };
@@ -193,11 +204,21 @@ export default function SpriteCreatorPage() {
     setError(null);
     setGeneratedImageUrl(null);
 
+    // Get user ID first
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      toast.error('Please log in to create sprites.');
+      setIsLoading(false);
+      return;
+    }
+
     const formData = new FormData();
+    formData.append('user_id', user.id); // Add user_id for backend
     formData.append('nickname', nickname);
     // file is definitely not null here because of check in handleFormSubmit
     if (file) formData.append('file', file);
-    
+
     // 기존 이미지가 있다면 삭제를 위해 함께 전송
     if (existingSpriteUrl) {
       formData.append('old_sprite_url', existingSpriteUrl);
@@ -215,20 +236,23 @@ export default function SpriteCreatorPage() {
       }
 
       const data = await response.json();
-      
-      // 서버가 GCS URL(절대 경로)을 반환하면 그대로 사용, 아니면 로컬 프록시 경로 사용
-      const targetSpriteUrl = data.url.startsWith('http') 
-        ? data.url 
+      console.log("📦 Backend response:", data);
+
+      // 서버가 Supabase URL(절대 경로)을 반환하면 그대로 사용, 아니면 로컬 프록시 경로 사용
+      const targetSpriteUrl = data.url.startsWith('http')
+        ? data.url
         : `${API_BASE_URL}${data.url}`;
-      
-      console.log("🎯 Sprite URL to apply:", targetSpriteUrl);
+
+      console.log("🎯 Sprite URL to save:", targetSpriteUrl);
+      console.log("📝 Nickname to save:", nickname);
       setGeneratedImageUrl(targetSpriteUrl);
 
       // Supabase 프로필에 스프라이트 URL 저장
-      const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (user) {
-        console.log("👤 User ID:", user.id);
+        console.log("💾 Updating profile for user:", user.id);
+        console.log("💾 Data to update:", { sprite_url: targetSpriteUrl, nickname: nickname });
+
         const { data: updatedData, error: updateError } = await supabase
           .from('profiles')
           .update({ sprite_url: targetSpriteUrl, nickname: nickname }) // 닉네임도 함께 업데이트

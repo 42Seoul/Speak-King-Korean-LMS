@@ -47,10 +47,6 @@ export default async function StudentManagementPage() {
                     
                     <div className="flex items-center gap-8 text-sm">
                         <div className="text-center">
-                            <div className="font-bold">Lv. {student.level || 1}</div>
-                            <div className="text-muted-foreground">Level</div>
-                        </div>
-                        <div className="text-center">
                             <div className="font-bold">{new Date(student.created_at!).toLocaleDateString()}</div>
                             <div className="text-muted-foreground">Joined</div>
                         </div>
