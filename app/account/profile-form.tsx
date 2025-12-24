@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Loader2, Upload, Save, Trash2, AlertTriangle } from "lucide-react"
@@ -38,10 +37,6 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
 
   const [nickname, setNickname] = useState(profile?.nickname || "")
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "")
-  const [isMicEnabled, setIsMicEnabled] = useState(profile?.is_mic_enabled ?? true)
-
-  // isStudent 조건 제거, 모든 역할에 동일 UI 적용
-  // const isStudent = profile?.role === 'student'
 
   const handleFileUpload = async (file: File, bucket: string, setter: (url: string) => void, loadingSetter: (v: boolean) => void) => {
     try {
@@ -77,8 +72,7 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
     try {
       await updateProfile({
         nickname,
-        avatar_url: avatarUrl,
-        is_mic_enabled: isMicEnabled
+        avatar_url: avatarUrl
       })
       alert("Profile updated successfully!")
       router.refresh()
@@ -163,28 +157,6 @@ export function ProfileForm({ user, profile }: ProfileFormProps) {
                                 {profile?.role || 'Student'}
                             </span>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Preferences</CardTitle>
-                    <CardDescription>Manage your app settings.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between space-x-2">
-                        <div className="space-y-0.5">
-                            <Label htmlFor="mic-access">Microphone Access</Label>
-                            <p className="text-sm text-muted-foreground">
-                                Allow the application to use your microphone for speaking exercises.
-                            </p>
-                        </div>
-                        <Switch
-                            id="mic-access"
-                            checked={isMicEnabled}
-                            onCheckedChange={setIsMicEnabled}
-                        />
                     </div>
                 </CardContent>
             </Card>

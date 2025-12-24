@@ -10,7 +10,6 @@ export interface ProfileUpdateData {
   nickname?: string
   avatar_url?: string
   sprite_url?: string
-  is_mic_enabled?: boolean
 }
 
 export async function updateProfile(data: ProfileUpdateData) {

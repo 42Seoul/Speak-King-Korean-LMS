@@ -5,6 +5,14 @@ import { useSpeechToText } from "@/hooks/use-speech"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Play, Mic, MicOff, ChevronRight, CheckCircle, AlertCircle, RefreshCw, Volume2, Lock, Trophy } from "lucide-react"
 import { cn, evaluateSpeech } from "@/lib/utils"
 import { updateProgress } from "@/app/actions/study"
@@ -259,14 +267,32 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
 
   if (error === 'permission_denied') {
       return (
-        <Card className="max-w-md mx-auto mt-10 text-center p-6 border-red-200 bg-red-50">
-            <Lock className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-red-700 mb-2">Microphone Access Denied</h3>
-            <p className="text-red-600 mb-6">Please allow microphone access in your browser settings.</p>
-            <Button className="mt-6 w-full" variant="outline" onClick={() => window.location.reload()}>
-                <RefreshCw className="mr-2 h-4 w-4" /> Refresh Page
-            </Button>
-        </Card>
+        <Dialog open={true}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-destructive">
+                        <Lock className="h-5 w-5" />
+                        Microphone Access Denied
+                    </DialogTitle>
+                    <DialogDescription>
+                        To continue learning, please allow microphone access in your browser settings.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-4 py-4 text-sm text-muted-foreground">
+                    <p>How to enable:</p>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li>Click the <strong>Lock icon</strong> or <strong>Site Settings</strong> in your browser's address bar.</li>
+                        <li>Find <strong>Microphone</strong> and set it to <strong>Allow</strong>.</li>
+                        <li>Refresh the page to apply changes.</li>
+                    </ul>
+                </div>
+                <DialogFooter>
+                    <Button className="w-full" onClick={() => window.location.reload()}>
+                        <RefreshCw className="mr-2 h-4 w-4" /> Refresh Page
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       )
   }
 

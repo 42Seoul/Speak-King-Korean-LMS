@@ -210,7 +210,6 @@ export type Database = {
           role: string | null
           updated_at: string | null
           sprite_url: string | null
-          is_mic_enabled: boolean | null
         }
         Insert: {
           avatar_url?: string | null
@@ -222,7 +221,6 @@ export type Database = {
           role?: string | null
           updated_at?: string | null
           sprite_url?: string | null
-          is_mic_enabled?: boolean | null
         }
         Update: {
           avatar_url?: string | null
@@ -234,7 +232,6 @@ export type Database = {
           role?: string | null
           updated_at?: string | null
           sprite_url?: string | null
-          is_mic_enabled?: boolean | null
         }
         Relationships: []
       }
