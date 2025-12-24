@@ -279,12 +279,14 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col gap-4 py-4 text-sm text-muted-foreground">
-                    <p>How to enable:</p>
-                    <ul className="list-disc pl-5 space-y-2">
-                        <li>Click the <strong>Lock icon</strong> or <strong>Site Settings</strong> in your browser's address bar.</li>
-                        <li>Find <strong>Microphone</strong> and set it to <strong>Allow</strong>.</li>
-                        <li>Refresh the page to apply changes.</li>
+                    <p className="font-semibold">How to enable access:</p>
+                    <ul className="list-decimal pl-5 space-y-2">
+                        <li>Click the <strong>Lock icon</strong> (or info icon) on the left side of the address bar.</li>
+                        <li>Select <strong>'Site settings'</strong> (or 'Settings for this website').</li>
+                        <li>Find <strong>'Microphone'</strong> in the permissions list and select <strong>'Allow'</strong> from the dropdown menu.</li>
+                        <li>If it was previously blocked, find this site in the 'Blocked' list and change it to <strong>'Allow'</strong>.</li>
                     </ul>
+                    <p className="mt-2 text-xs italic">After changing settings, please refresh the page to apply the changes.</p>
                 </div>
                 <DialogFooter>
                     <Button className="w-full" onClick={() => window.location.reload()}>
