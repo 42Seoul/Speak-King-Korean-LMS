@@ -130,7 +130,7 @@ export default function WorldPage() {
       />
 
       {/* UI 컨트롤 패널 */}
-      <Card className="absolute top-4 left-4 z-50 w-64 shadow-xl backdrop-blur-sm bg-background/95 border-border/50 hidden md:block">
+      <Card className="absolute top-4 left-4 z-50 w-64 shadow-xl backdrop-blur-sm bg-background/95 border-border/50 hidden lg:block">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Gamepad2 className="w-5 h-5" /> World Info
@@ -266,7 +266,7 @@ const VirtualJoystick = ({ onMove, onStop }: { onMove: (x: number, y: number) =>
   return (
     <div 
         ref={joystickRef}
-        className="relative w-32 h-32 rounded-full bg-black/20 backdrop-blur-sm border-2 border-white/30 touch-none flex items-center justify-center"
+        className="relative w-32 h-32 landscape:w-24 landscape:h-24 rounded-full bg-black/20 backdrop-blur-sm border-2 border-white/30 touch-none flex items-center justify-center"
         onTouchStart={(e) => {
             e.preventDefault(); // 중요: 기본 터치 동작 방지
             handleStart(e.changedTouches[0].clientX, e.changedTouches[0].clientY, e.changedTouches[0].identifier);
@@ -560,11 +560,11 @@ const GameCanvas = ({
     <div className="absolute inset-0 w-full h-full touch-none overflow-hidden">
         <canvas ref={canvasRef} className="block w-full h-full absolute inset-0 z-10" />
 
-        {/* 모바일 전용 컨트롤 (md 미만에서만 표시) */}
-        <div className="absolute inset-0 z-[200] md:hidden pointer-events-none">
+        {/* 모바일 전용 컨트롤 (lg 미만에서만 표시 - 가로모드 대응) */}
+        <div className="absolute inset-0 z-[200] lg:hidden pointer-events-none">
             
             {/* 왼쪽 하단: 조이스틱 */}
-            <div className="absolute bottom-12 left-8 pointer-events-auto">
+            <div className="absolute bottom-12 left-8 landscape:bottom-4 landscape:left-4 pointer-events-auto">
                 <VirtualJoystick 
                     onMove={handleJoystickMove} 
                     onStop={handleJoystickStop} 
@@ -572,29 +572,29 @@ const GameCanvas = ({
             </div>
 
             {/* 오른쪽 하단: 액션 버튼 */}
-            <div className="absolute bottom-12 right-8 pointer-events-auto flex items-end gap-3"
+            <div className="absolute bottom-12 right-8 landscape:bottom-4 landscape:right-4 pointer-events-auto flex items-end gap-3"
                  onClick={(e) => e.stopPropagation()}
             >
                 {/* 댄스 버튼 */}
                 <Button 
                     variant="outline"
-                    className="w-16 h-16 rounded-full shadow-xl bg-background/80 backdrop-blur-sm border-2 flex items-center justify-center active:scale-95 transition-all touch-none select-none p-0"
+                    className="w-16 h-16 landscape:w-12 landscape:h-12 rounded-full shadow-xl bg-background/80 backdrop-blur-sm border-2 flex items-center justify-center active:scale-95 transition-all touch-none select-none p-0"
                     onClick={onDance}
                 >
-                    <span className="text-2xl">💃</span>
+                    <span className="text-2xl landscape:text-lg">💃</span>
                 </Button>
 
                 {/* 점프 버튼 */}
                 <Button 
                     variant="default"
-                    className="w-20 h-20 rounded-full shadow-xl bg-primary/80 border-2 border-white/20 flex items-center justify-center active:scale-95 transition-all touch-none select-none"
+                    className="w-20 h-20 landscape:w-16 landscape:h-16 rounded-full shadow-xl bg-primary/80 border-2 border-white/20 flex items-center justify-center active:scale-95 transition-all touch-none select-none"
                     onMouseDown={handleJumpStart}
                     onMouseUp={handleJumpEnd}
                     onMouseLeave={handleJumpEnd}
                     onTouchStart={handleJumpStart}
                     onTouchEnd={handleJumpEnd}
                 >
-                    <span className="text-lg font-bold text-white">JUMP</span>
+                    <span className="text-lg font-bold text-white landscape:text-sm">JUMP</span>
                 </Button>
             </div>
         </div>
