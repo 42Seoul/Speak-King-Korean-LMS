@@ -1,50 +1,81 @@
 import { NextResponse } from 'next/server';
-import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+import { GoogleGenAI, SchemaType } from '@google/genai';
 
-const ttsClient = new TextToSpeechClient();
+// Initialize Gemini AI client
+const getGeminiClient = () => {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error('GOOGLE_API_KEY is not set in environment variables');
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 interface VoiceOptions {
   voiceName: string;
   modelName?: string;
-  voicePrompt?: string; // For Gemini
+  voicePrompt?: string; // For Gemini natural language control
   audioEncoding: 'MP3' | 'WAV' | 'OGG';
   speakingRate?: number;
   pitch?: number;
-  volumeGainDb?: number;
-  ssmlGender?: 'MALE' | 'FEMALE' | 'NEUTRAL';
   languageCode: string;
-  ssmlText?: string | null; // If provided, treat input as SSML
 }
 
 interface ProcessedItem {
   id: number;
   original: string;
   translation: string;
-  corrected: string; // Same as original for now (REQ-C-05)
+  corrected: string;
   binaryData: string | null; // Base64
   audioFileName: string;
   error: string | null;
 }
 
+// Gemini TTS Voice Mapping
+const GEMINI_VOICE_MAP: Record<string, string> = {
+  // Legacy Google Cloud TTS to Gemini TTS mapping
+  'ko-KR-Neural2-A': 'Kore',
+  'ko-KR-Neural2-B': 'Puck',
+  'ko-KR-Neural2-C': 'Charon',
+  'ko-KR-Standard-A': 'Kore',
+  'ko-KR-Standard-B': 'Puck',
+
+  // Direct Gemini voice names
+  'Kore': 'Kore',
+  'Puck': 'Puck',
+  'Charon': 'Charon',
+  'Kore-en': 'Kore',
+  'Aoede': 'Aoede',
+  'Fenrir': 'Fenrir',
+  'Orbit': 'Orbit',
+
+  // Default fallback
+  'default': 'Kore'
+};
+
+// Simple concurrency limiter
+async function asyncPool<T>(poolLimit: number, array: any[], iteratorFn: (item: any, array: any[]) => Promise<T>) {
+  const ret: Promise<T>[] = [];
+  const executing: Promise<any>[] = [];
+  for (const item of array) {
+    const p = Promise.resolve().then(() => iteratorFn(item, array));
+    ret.push(p);
+
+    if (poolLimit <= array.length) {
+      const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= poolLimit) {
+        await Promise.race(executing);
+      }
+    }
+  }
+  return Promise.all(ret);
+}
+
 // Translation Helper
 async function translateText(text: string): Promise<string> {
   try {
-    // 1. Try MyMemory API
-    const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ko|en`;
-    const res1 = await fetch(myMemoryUrl);
-    const data1 = await res1.json();
-    
-    if (res1.ok && data1.responseData?.translatedText) {
-      return data1.responseData.translatedText;
-    }
-  } catch (e) {
-    console.warn('MyMemory translation failed, trying fallback...', e);
-  }
-
-  try {
-    // 2. Fallback: LibreTranslate (Public instance - might be rate limited)
     const libreUrl = 'https://libretranslate.de/translate';
-    const res2 = await fetch(libreUrl, {
+    const res = await fetch(libreUrl, {
       method: 'POST',
       body: JSON.stringify({
         q: text,
@@ -54,69 +85,70 @@ async function translateText(text: string): Promise<string> {
       }),
       headers: { 'Content-Type': 'application/json' }
     });
-    
-    if (res2.ok) {
-      const data2 = await res2.json();
-      return data2.translatedText || '';
+
+    if (res.ok) {
+      const data = await res.json();
+      return data.translatedText || '';
     }
   } catch (e) {
-    console.warn('LibreTranslate failed', e);
+    console.warn('Translation failed', e);
   }
-
-  return 'Translation unavailable';
+  return '';
 }
 
-async function generateAudio(text: string, options: VoiceOptions): Promise<string> {
-  // Construct the request
-  const request: any = {
-    input: {},
-    voice: {
-      languageCode: options.languageCode,
-      name: options.voiceName,
-    },
-    audioConfig: {
-      audioEncoding: options.audioEncoding === 'OGG' ? 'OGG_OPUS' : options.audioEncoding, // Map OGG to OGG_OPUS
-      speakingRate: options.speakingRate || 1.0,
-      pitch: options.pitch || 0,
-      volumeGainDb: options.volumeGainDb || 0,
-    },
-  };
+async function generateAudioWithGemini(text: string, options: VoiceOptions): Promise<string> {
+  const ai = getGeminiClient();
 
-  // SSML vs Text
-  if (options.ssmlText && options.ssmlText.includes('<speak>')) {
-     // If user provided custom SSML logic (advanced mode)
-     // We need to inject the text into the SSML if it's a template, or use as is.
-     // For this simple implementation, if we are processing a list of sentences, 
-     // we assume standard synthesis unless 'ssmlText' implies a specific format.
-     // However, for list processing, we usually just synthesize the text.
-     // Reverting to text synthesis for list mode to avoid complex SSML injection per sentence.
-     request.input = { text };
-  } else {
-    request.input = { text };
+  const geminiVoiceName = GEMINI_VOICE_MAP[options.voiceName] || GEMINI_VOICE_MAP['default'];
+  const modelName = 'gemini-2.5-flash-preview-tts';
+
+  // NOTE: The gemini-2.5-flash-preview-tts model is extremely strict.
+  // It DOES NOT accept natural language instructions for speed/pitch/style in the prompt.
+  // Any extra text causes a "Model tried to generate text" error.
+  // We strictly send ONLY the text content.
+  // ALSO: Wrapping in quotes helps prevent the model from treating short words (e.g. "Hello") as chat messages.
+  const userPrompt = `"${text}"`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPrompt }]
+        }
+      ],
+      config: {
+        responseModalities: ["AUDIO"],
+        // responseMimeType is NOT supported for this model in generateContent
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: geminiVoiceName
+            }
+          }
+        }
+      }
+    });
+
+    const candidate = response.candidates?.[0];
+    const audioPart = candidate?.content?.parts?.find(p => p.inlineData && p.inlineData.mimeType?.startsWith('audio'));
+    
+    if (audioPart?.inlineData?.data) {
+      return audioPart.inlineData.data;
+    }
+
+    if ((response as any).audio?.data) {
+        return (response as any).audio.data;
+    }
+
+    throw new Error('No audio content found in Gemini TTS response');
+
+  } catch (error: any) {
+    console.error(`Gemini TTS Error for voice ${geminiVoiceName}:`, error);
+    throw error;
   }
-
-  // Handle SSML Gender if voice name not fully specified (rare for Google TTS, usually voice name implies gender)
-  if (options.ssmlGender) {
-    request.voice.ssmlGender = options.ssmlGender;
-  }
-
-  // Gemini / Generative logic (Placeholder if specific API fields are needed)
-  // If modelName is 'gemini-2.5-pro-tts', we might need to change the request structure
-  // or use a different client method if Google releases a specific one.
-  // For now, we assume it works via the standard synthesizeSpeech with a specific voice name/model.
-  // Note: Actual Gemini TTS might require Vertex AI API.
-  
-  const [response] = await ttsClient.synthesizeSpeech(request);
-  
-  if (!response.audioContent) {
-    throw new Error('No audio content received');
-  }
-
-  return Buffer.from(response.audioContent).toString('base64');
 }
-
-// Simple beep base64 for mock
-const MOCK_AUDIO_BASE64 = "//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
 
 export async function POST(req: Request) {
   try {
@@ -127,54 +159,51 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid input: rawSentences must be an array' }, { status: 400 });
     }
 
-    // Process in parallel
-    const results: ProcessedItem[] = await Promise.all(
-      rawSentences.map(async (text, index) => {
-        const id = index + 1;
-        try {
-          
-          let translation = await translateText(text);
-          let audioBase64 = "";
+    // Process with concurrency limit (3) to avoid rate limits
+    const results = await asyncPool(3, rawSentences, async (text, _) => {
+      // Index isn't available directly in asyncPool iterator, so we find it or pass it. 
+      // For simplicity, we'll re-map ID later or assume order is preserved (Promise.all preserves order).
+      
+      const id = Date.now(); // Temporary ID, client should handle ordering
 
-          try {
-             audioBase64 = await generateAudio(text, voiceOptions);
-          } catch (audioError: any) {
-             if (audioError.message?.includes('Could not load the default credentials')) {
-                 console.warn("Using MOCK audio for", text);
-                 audioBase64 = MOCK_AUDIO_BASE64; // Fallback
-             } else {
-                 throw audioError;
-             }
-          }
+      try {
+        // Parallel: Translate & Audio
+        const [translation, audioBase64] = await Promise.all([
+          translateText(text),
+          generateAudioWithGemini(text, voiceOptions)
+        ]);
 
-          const ext = voiceOptions.audioEncoding.toLowerCase();
+        return {
+          id, // Placeholder
+          original: text,
+          corrected: text,
+          translation,
+          binaryData: audioBase64,
+          audioFileName: `sentence_${id}.mp3`,
+          error: null
+        };
 
-          return {
-            id,
-            original: text,
-            corrected: text, // REQ-C-05
-            translation,
-            binaryData: audioBase64,
-            audioFileName: `sentence_${id}.${ext}`,
-            error: null
-          };
+      } catch (error: any) {
+        return {
+          id,
+          original: text,
+          corrected: text,
+          translation: '',
+          binaryData: null,
+          audioFileName: '',
+          error: error.message || 'Processing failed'
+        };
+      }
+    });
 
-        } catch (error: any) {
-          console.error(`Error processing sentence ${id}:`, error);
-          return {
-            id,
-            original: text,
-            corrected: text,
-            translation: '',
-            binaryData: null,
-            audioFileName: '',
-            error: error.message || 'Processing failed'
-          };
-        }
-      })
-    );
+    // Fix IDs to be sequential based on original order
+    const orderedResults = results.map((r, i) => ({
+      ...r,
+      id: i + 1,
+      audioFileName: `sentence_${i + 1}.mp3`
+    }));
 
-    return NextResponse.json(results);
+    return NextResponse.json(orderedResults);
 
   } catch (error: any) {
     console.error('API Error:', error);
