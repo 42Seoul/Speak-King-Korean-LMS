@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Play, Download, Wand2, CheckCircle2, AlertCircle } from "lucide-react"
+import { Loader2, Play, Download, Wand2, CheckCircle2, AlertCircle, AlertTriangle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import JSZip from "jszip"
@@ -66,7 +66,6 @@ export function AiContentGenerator({ onImport }: AiContentGeneratorProps) {
   const [useSSML, setUseSSML] = useState(false)
   
   const [processing, setProcessing] = useState(false)
-  const [testing, setTesting] = useState(false)
   const [progress, setProgress] = useState(0)
   const [results, setResults] = useState<ProcessedResult[]>([])
   
@@ -369,13 +368,6 @@ export function AiContentGenerator({ onImport }: AiContentGeneratorProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-         <Button variant="outline" size="sm" onClick={handleTestTTS} disabled={testing || processing}>
-            {testing ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Play className="mr-2 h-3 w-3" />}
-            Test System Sound
-         </Button>
-      </div>
-
       <div className="grid md:grid-cols-[1fr_300px] gap-6">
         {/* Left Column: Input */}
         <div className="space-y-4">
@@ -461,7 +453,14 @@ export function AiContentGenerator({ onImport }: AiContentGeneratorProps) {
                             <div className="space-y-1">
                                 <p className="text-lg font-medium">{item.original}</p>
                                 <p className="text-muted-foreground">{item.translation}</p>
-                                {item.error && <p className="text-destructive text-sm">{item.error}</p>}
+                                {item.error && (
+                                    <div className="mt-2 p-2 bg-red-100 text-red-800 rounded text-xs font-mono break-all flex items-start gap-2">
+                                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                                        <div>
+                                            <strong>Error:</strong> {item.error}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center gap-2">

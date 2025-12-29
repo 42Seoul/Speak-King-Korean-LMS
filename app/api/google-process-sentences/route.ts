@@ -74,24 +74,47 @@ async function asyncPool<T>(poolLimit: number, array: any[], iteratorFn: (item: 
 // Translation Helper
 async function translateText(text: string): Promise<string> {
   try {
-    const libreUrl = 'https://libretranslate.de/translate';
-    const res = await fetch(libreUrl, {
-      method: 'POST',
-      body: JSON.stringify({
-        q: text,
-        source: 'ko',
-        target: 'en',
-        format: 'text'
-      }),
-      headers: { 'Content-Type': 'application/json' }
-    });
+    // Try Google Translate (Unofficial free API) which is more reliable for simple strings
+    // than overloaded public LibreTranslate instances.
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url);
 
-    if (res.ok) {
-      const data = await res.json();
-      return data.translatedText || '';
+    if (!res.ok) throw new Error(`Translation API status: ${res.status}`);
+
+    const data = await res.json();
+    // Google Translate structure: [[["Translated Text","Original Text",...],...],...]
+    if (data && data[0] && data[0][0] && data[0][0][0]) {
+      return data[0][0][0];
     }
   } catch (e) {
-    console.warn('Translation failed', e);
+    console.warn('Google Translate fallback failed, trying LibreTranslate...', e);
+    
+    // Fallback: LibreTranslate
+    try {
+        const libreUrl = 'https://libretranslate.de/translate';
+        const res = await fetch(libreUrl, {
+          method: 'POST',
+          body: JSON.stringify({
+            q: text,
+            source: 'ko',
+            target: 'en',
+            format: 'text'
+          }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const textRes = await res.text();
+        if (textRes.trim().startsWith('<')) {
+            throw new Error('LibreTranslate returned HTML instead of JSON');
+        }
+
+        if (res.ok) {
+          const data = JSON.parse(textRes);
+          return data.translatedText || '';
+        }
+    } catch (e2) {
+        console.warn('All translation attempts failed', e2);
+    }
   }
   return '';
 }
