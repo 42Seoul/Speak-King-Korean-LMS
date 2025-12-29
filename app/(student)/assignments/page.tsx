@@ -1,5 +1,7 @@
-import { createClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
+"use client"
+
+import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,35 +11,77 @@ import { Progress } from "@/components/ui/progress"
 import { format } from "date-fns"
 import { Calendar, CheckCircle2, AlertCircle, Play, BarChart3 } from "lucide-react"
 
-export default async function StudentAssignmentsPage() {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
-  const { data: { user } } = await supabase.auth.getUser()
+export default function StudentAssignmentsPage() {
+  const [assignments, setAssignments] = useState<any[]>([])
+  const [progressMap, setProgressMap] = useState<Map<string, number>>(new Map())
+  const [loading, setLoading] = useState(true)
 
-  if (!user) return <div>Please log in.</div>
+  const fetchData = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-  // 1. Fetch Assignments
-  const { data: assignments } = await supabase
-    .from('assignments')
-    .select(`
-        *,
-        study_sets (title, description),
-        profiles:teacher_id (nickname)
-    `)
-    .eq('student_id', user.id)
-    .order('due_date', { ascending: true })
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
-  // 2. Fetch User Progress (to calculate remaining count)
-  const { data: progressList } = await supabase
-    .from('user_study_progress')
-    .select('study_set_id, total_repeat_count')
-    .eq('user_id', user.id)
+    // 1. Fetch Assignments
+    const { data: assignmentsData } = await supabase
+      .from('assignments')
+      .select(`
+          *,
+          study_sets (title, description),
+          profiles:teacher_id (nickname)
+      `)
+      .eq('student_id', user.id)
+      .order('due_date', { ascending: true })
 
-  const progressMap = new Map<string, number>()
-  progressList?.forEach((p: any) => progressMap.set(p.study_set_id, p.total_repeat_count))
+    // 2. Fetch User Progress (to calculate remaining count)
+    const { data: progressList } = await supabase
+      .from('user_study_progress')
+      .select('study_set_id, total_repeat_count')
+      .eq('user_id', user.id)
 
-  const pending = assignments?.filter((a: any) => !a.is_completed) || []
-  const completed = assignments?.filter((a: any) => a.is_completed) || []
+    const newProgressMap = new Map<string, number>()
+    progressList?.forEach((p: any) => newProgressMap.set(p.study_set_id, p.total_repeat_count))
+
+    setAssignments(assignmentsData || [])
+    setProgressMap(newProgressMap)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchData()
+
+    // Set up realtime subscription to refresh when assignments or progress change
+    const supabase = createClient()
+    const assignmentChannel = supabase
+      .channel('student-assignments-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assignments' }, () => {
+        console.log('📢 Assignment changed, refreshing...')
+        fetchData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_study_progress' }, () => {
+        console.log('📢 Progress changed, refreshing...')
+        fetchData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(assignmentChannel)
+    }
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="container py-8">
+        <div className="text-center">Loading...</div>
+      </div>
+    )
+  }
+
+  const pending = assignments.filter((a: any) => !a.is_completed)
+  const completed = assignments.filter((a: any) => a.is_completed)
 
   return (
     <div className="container py-8 space-y-6">

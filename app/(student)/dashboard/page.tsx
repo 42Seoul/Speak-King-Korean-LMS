@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { BookOpen, User } from "lucide-react"
 import { redirect } from "next/navigation"
+import { Badge } from "@/components/ui/badge"
 
 export default async function DashboardPage() {
   const cookieStore = cookies()
@@ -46,12 +47,22 @@ export default async function DashboardPage() {
   
   const userProgress = rawUserProgress as { study_set_id: string; total_repeat_count: number }[]
 
+  // Fetch pending assignments
+  const { data: rawAssignments } = await supabase
+    .from('assignments')
+    .select('study_set_id')
+    .eq('student_id', user.id)
+    .eq('is_completed', false)
+
+  const pendingAssignmentSetIds = new Set(rawAssignments?.map((a: any) => a.study_set_id) || [])
+
   // Map progress to study sets
   const studySetsWithProgress = studySets?.map(set => {
     const progress = userProgress?.find(p => p.study_set_id === set.id)
     return {
       ...set,
-      completedCount: progress?.total_repeat_count || 0
+      completedCount: progress?.total_repeat_count || 0,
+      hasAssignment: pendingAssignmentSetIds.has(set.id)
     }
   }) || []
 
@@ -96,7 +107,12 @@ export default async function DashboardPage() {
                 studySetsWithProgress.map((set) => (
                     <Card key={set.id} className="hover:bg-muted/50 transition-colors">
                         <CardHeader>
-                            <CardTitle>{set.title}</CardTitle>
+                            <CardTitle className="flex items-center justify-between">
+                              {set.title}
+                              {set.hasAssignment && (
+                                <Badge variant="destructive" className="ml-2">Homework</Badge>
+                              )}
+                            </CardTitle>
                             <CardDescription>{set.description}</CardDescription>
                         </CardHeader>
                         <CardContent>

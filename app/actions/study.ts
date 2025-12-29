@@ -5,7 +5,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 
-export async function updateProgress(studySetId: string, stats: { spoken: number, skipped: number }) {
+export async function updateProgress(studySetId: string, stats: { spoken: number, skipped: number, repeats?: number }) {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
   const { data: { user } } = await supabase.auth.getUser()
@@ -21,13 +21,15 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
     .single()
 
   const existing = rawExisting as any
+  const repeatsToAdd = stats.repeats || 1
+  const newRepeatCount = existing ? (existing.total_repeat_count || 0) + repeatsToAdd : repeatsToAdd
 
   if (existing) {
     // Update
     await (supabase
       .from('user_study_progress') as any)
       .update({
-        total_repeat_count: (existing.total_repeat_count || 0) + 1,
+        total_repeat_count: newRepeatCount,
         total_speaking_count: (existing.total_speaking_count || 0) + stats.spoken,
         total_skip_count: (existing.total_skip_count || 0) + stats.skipped,
         last_studied_at: new Date().toISOString()
@@ -40,14 +42,55 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
       .insert({
         user_id: user.id,
         study_set_id: studySetId,
-        total_repeat_count: 1,
+        total_repeat_count: newRepeatCount,
         total_speaking_count: stats.spoken,
         total_skip_count: stats.skipped,
         last_studied_at: new Date().toISOString()
       })
   }
 
-    
+  // Check and update assignment completion status
+  console.log('🔍 [updateProgress] Checking assignments for completion...')
+  console.log(`   User: ${user.id}, Study Set: ${studySetId}, New Repeat Count: ${newRepeatCount}`)
+
+  const { data: assignments } = await supabase
+    .from('assignments')
+    .select('id, target_count, is_completed')
+    .eq('student_id', user.id)
+    .eq('study_set_id', studySetId)
+    .eq('is_completed', false)
+
+  console.log(`   Found ${assignments?.length || 0} pending assignments:`, assignments)
+
+  if (assignments && assignments.length > 0) {
+    // Update assignments that have reached their target
+    const completedAssignmentIds = assignments
+      .filter((assignment: any) => {
+        const isComplete = newRepeatCount >= assignment.target_count
+        console.log(`   Assignment ${assignment.id}: ${newRepeatCount} >= ${assignment.target_count} = ${isComplete}`)
+        return isComplete
+      })
+      .map((assignment: any) => assignment.id)
+
+    console.log(`   Assignments to mark as complete: ${completedAssignmentIds.length}`, completedAssignmentIds)
+
+    if (completedAssignmentIds.length > 0) {
+      const { error } = await supabase
+        .from('assignments')
+        .update({ is_completed: true })
+        .in('id', completedAssignmentIds)
+
+      if (error) {
+        console.error('   ❌ Failed to update assignments:', error)
+      } else {
+        console.log('   ✅ Successfully marked assignments as complete')
+      }
+
+      revalidatePath('/assignments')
+    }
+  } else {
+    console.log('   ℹ️ No pending assignments found for this study set')
+  }
 
 revalidatePath('/dashboard')
 

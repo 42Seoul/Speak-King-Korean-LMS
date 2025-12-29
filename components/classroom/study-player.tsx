@@ -5,11 +5,19 @@ import { useSpeechToText } from "@/hooks/use-speech"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Play, Mic, MicOff, ChevronRight, CheckCircle, AlertCircle, RefreshCw, Volume2, Lock, Settings, Trophy } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Play, Mic, MicOff, ChevronRight, CheckCircle, AlertCircle, RefreshCw, Volume2, Lock, Trophy } from "lucide-react"
 import { cn, evaluateSpeech } from "@/lib/utils"
 import { updateProgress } from "@/app/actions/study"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client" // 추가
+import { toast } from "sonner"
 
 export interface StudyItem {
   id: number
@@ -29,27 +37,22 @@ interface StudyPlayerProps {
 
 type SessionStage = "check_mic" | "ready" | "playing"
 
+// Timing Constants
+const SKIP_DELAY_MS = 4000
+const SUCCESS_TRANSITION_DELAY = {
+  PERFECT_MATCH: 100,
+  SIMILARITY_MATCH: 500
+} as const
+
 export default function StudyPlayer({ studySetId, items, targetRepeat, onSessionComplete }: StudyPlayerProps) {
   const router = useRouter()
-  const supabase = createClient() // 추가
-  const [user, setUser] = useState<any>(null) // 추가
-  
+
   // Session State
   const [stage, setStage] = useState<SessionStage>("check_mic")
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [completedCount, setCompletedCount] = useState(0) 
+  const [completedCount, setCompletedCount] = useState(0)
   const [isFinished, setIsFinished] = useState(false)
 
-  useEffect(() => { // 추가
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-      }
-    }
-    getUser()
-  }, [supabase]) // supabase 의존성 추가
-  
   // Item State
   const [isPlaying, setIsPlaying] = useState(false)
   const [canSkip, setCanSkip] = useState(false) 
@@ -59,7 +62,8 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
 
   const { status, transcript, interimTranscript, startListening, stopListening, resetTranscript, error } = useSpeechToText()
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  
+  const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   const currentItem = items[currentIndex]
   const totalItems = items.length
   
@@ -74,8 +78,7 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
 
     if (audioRef.current && currentItem.audio_url) {
       setIsPlaying(true)
-      stopListening() // This was being called here
-      
+
       audioRef.current.src = currentItem.audio_url
       audioRef.current.play()
         .catch(e => {
@@ -83,25 +86,47 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
             setIsPlaying(false)
         })
     }
-  }, [currentItem, isFinished, stopListening]) // stopListening was a dependency
+  }, [currentItem, isFinished])
 
   // 1. Initial Start / Item Change Logic
   useEffect(() => {
     if (stage !== "playing" || isFinished) return
 
+    console.log('[Player] Item change', {
+      currentIndex,
+      currentText: currentItem.text,
+      stage,
+      completedCount
+    })
+
+    // Clear any pending skip timeout from previous item
+    if (skipTimeoutRef.current) {
+      clearTimeout(skipTimeoutRef.current)
+      skipTimeoutRef.current = null
+    }
+
     setFeedback("none")
     setScore(0)
     setCanSkip(false)
+
+    // Critical: Stop listening BEFORE reset to ensure clean state
+    stopListening()
     resetTranscript()
-    stopListening() // This was called here
-    
+
     playAudio()
-  }, [currentIndex, stage, completedCount, isFinished, resetTranscript, stopListening, playAudio])
+  }, [currentIndex, stage, completedCount, isFinished, resetTranscript, stopListening, playAudio, currentItem.text])
 
   // Cleanup on Finish
   useEffect(() => {
       if (isFinished) {
           stopListening()
+
+          // Clear any pending skip timeout
+          if (skipTimeoutRef.current) {
+            clearTimeout(skipTimeoutRef.current)
+            skipTimeoutRef.current = null
+          }
+
           if (audioRef.current) {
               audioRef.current.pause()
               audioRef.current.currentTime = 0
@@ -110,68 +135,25 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
   }, [isFinished, stopListening])
 
   // 3. Audio Ended Handler
-  const handleAudioEnded = () => {
+  const handleAudioEnded = useCallback(() => {
     if (isFinished) return
     setIsPlaying(false)
     startListening() // Now safe to start listening after audio is done.
 
-    setTimeout(() => {
+    // Clear any existing skip timeout before setting a new one
+    if (skipTimeoutRef.current) {
+      clearTimeout(skipTimeoutRef.current)
+    }
+
+    // Set new skip timeout and store the ID
+    skipTimeoutRef.current = setTimeout(() => {
       setCanSkip(true)
-    }, 4000)
-  }
+      skipTimeoutRef.current = null
+    }, SKIP_DELAY_MS)
+  }, [isFinished, startListening])
 
-  // 4. Evaluation Logic
-  useEffect(() => {
-    // Combine finalized text with currently spoken text for instant feedback
-    const fullText = (transcript + " " + interimTranscript).trim()
-    
-    if (!fullText || feedback === 'success' || isFinished) return
-
-    const { score: newScore, passed, matchType } = evaluateSpeech(currentItem.text, fullText)
-    setScore(newScore)
-
-    if (passed) {
-        console.log(`Passed via: ${matchType} (Score: ${newScore}%)`)
-        setFeedback("success")
-        stopListening()
-        
-        // Dynamic delay based on match type
-        // A_contains: Instant (fast) transition for perfect matches
-        // B_similarity: Slight delay (500ms) to let user finish speaking or see the score
-        const delay = matchType === 'A_contains' ? 100 : 500
-
-        setTimeout(() => {
-            handleNext("success")
-        }, delay)
-    } 
-  }, [transcript, interimTranscript, currentItem.text, feedback, stopListening, isFinished])
-
-  // 5. Navigation Logic
-  const handleNext = async (result: "success" | "skipped") => {
-    if (isFinished) return
-
-    const newStats = {
-        spoken: sessionStats.spoken + (result === "success" ? 1 : 0),
-        skipped: sessionStats.skipped + (result === "skipped" ? 1 : 0)
-    }
-    setSessionStats(newStats)
-
-    if (currentIndex >= items.length - 1) {
-        const newCount = completedCount + 1
-        
-        if (newCount >= targetRepeat) {
-            setCompletedCount(newCount)
-            finishSession(newStats)
-        } else {
-            setCompletedCount(newCount)
-            setCurrentIndex(0)
-        }
-    } else {
-        setCurrentIndex(prev => prev + 1)
-    }
-  }
-
-  const finishSession = async (finalStats: { spoken: number, skipped: number }) => {
+  // 4. Session Management
+  const finishSession = useCallback(async (finalStats: { spoken: number, skipped: number, repeats: number }) => {
     setIsFinished(true)
     stopListening()
 
@@ -186,7 +168,79 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
         toast.error("세션 저장에 실패했습니다.")
         router.push('/dashboard')
     }
-  }
+  }, [studySetId, onSessionComplete, stopListening, router])
+
+  // 5. Navigation Logic
+  const handleNext = useCallback(async (result: "success" | "skipped") => {
+    if (isFinished) return
+
+    // Clear skip timeout when navigating
+    if (skipTimeoutRef.current) {
+      clearTimeout(skipTimeoutRef.current)
+      skipTimeoutRef.current = null
+    }
+
+    const newStats = {
+        spoken: sessionStats.spoken + (result === "success" ? 1 : 0),
+        skipped: sessionStats.skipped + (result === "skipped" ? 1 : 0)
+    }
+    setSessionStats(newStats)
+
+    if (currentIndex >= items.length - 1) {
+        const newCount = completedCount + 1
+
+        if (newCount >= targetRepeat) {
+            setCompletedCount(newCount)
+            finishSession({ ...newStats, repeats: newCount })
+        } else {
+            setCompletedCount(newCount)
+            setCurrentIndex(0)
+        }
+    } else {
+        setCurrentIndex(prev => prev + 1)
+    }
+  }, [isFinished, sessionStats, currentIndex, items.length, completedCount, targetRepeat, finishSession])
+
+  // 6. Evaluation Logic
+  useEffect(() => {
+    // Combine finalized text with currently spoken text for instant feedback
+    const fullText = (transcript + " " + interimTranscript).trim()
+
+    if (!fullText || feedback === 'success' || isFinished) return
+
+    const { score: newScore, passed, matchType } = evaluateSpeech(currentItem.text, fullText)
+    setScore(newScore)
+
+    if (passed) {
+        console.log('[Player] Success!', {
+          matchType,
+          score: newScore,
+          target: currentItem.text,
+          input: fullText,
+          currentIndex
+        })
+        setFeedback("success")
+        stopListening()
+
+        // Clear skip timeout since user succeeded
+        if (skipTimeoutRef.current) {
+          clearTimeout(skipTimeoutRef.current)
+          skipTimeoutRef.current = null
+        }
+        setCanSkip(false) // Explicitly hide skip button on success
+
+        // Dynamic delay based on match type
+        // A_contains: Instant (fast) transition for perfect matches
+        // B_similarity: Slight delay to let user finish speaking or see the score
+        const delay = matchType === 'A_contains'
+          ? SUCCESS_TRANSITION_DELAY.PERFECT_MATCH
+          : SUCCESS_TRANSITION_DELAY.SIMILARITY_MATCH
+
+        setTimeout(() => {
+            handleNext("success")
+        }, delay)
+    }
+  }, [transcript, interimTranscript, currentItem.text, feedback, stopListening, isFinished, currentIndex, handleNext])
 
   // --- STAGE 1: Mic Check & Error Handling ---
   const handleMicCheck = () => {
@@ -213,14 +267,34 @@ export default function StudyPlayer({ studySetId, items, targetRepeat, onSession
 
   if (error === 'permission_denied') {
       return (
-        <Card className="max-w-md mx-auto mt-10 text-center p-6 border-red-200 bg-red-50">
-            <Lock className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-red-700 mb-2">Microphone Access Denied</h3>
-            <p className="text-red-600 mb-6">Please allow microphone access in your browser settings.</p>
-            <Button className="mt-6 w-full" variant="outline" onClick={() => window.location.reload()}>
-                <RefreshCw className="mr-2 h-4 w-4" /> Refresh Page
-            </Button>
-        </Card>
+        <Dialog open={true}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-destructive">
+                        <Lock className="h-5 w-5" />
+                        Microphone Access Denied
+                    </DialogTitle>
+                    <DialogDescription>
+                        To continue learning, please allow microphone access in your browser settings.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-4 py-4 text-sm text-muted-foreground">
+                    <p className="font-semibold">How to enable access:</p>
+                    <ul className="list-decimal pl-5 space-y-2">
+                        <li>Click the <strong>Lock icon</strong> (or info icon) on the left side of the address bar.</li>
+                        <li>Select <strong>'Site settings'</strong> (or 'Settings for this website').</li>
+                        <li>Find <strong>'Microphone'</strong> in the permissions list and select <strong>'Allow'</strong> from the dropdown menu.</li>
+                        <li>If it was previously blocked, find this site in the 'Blocked' list and change it to <strong>'Allow'</strong>.</li>
+                    </ul>
+                    <p className="mt-2 text-xs italic">After changing settings, please refresh the page to apply the changes.</p>
+                </div>
+                <DialogFooter>
+                    <Button className="w-full" onClick={() => window.location.reload()}>
+                        <RefreshCw className="mr-2 h-4 w-4" /> Refresh Page
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       )
   }
 

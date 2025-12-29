@@ -1,32 +1,64 @@
-import { createClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { CreateAssignmentDialog } from "./create-assignment-dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
+import { EditAssignmentDialog } from "@/components/teacher/edit-assignment-dialog"
+import { DeleteAssignmentButton } from "@/components/teacher/delete-assignment-button"
 
-export default async function AssignmentsPage() {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
-  const { data: { user } } = await supabase.auth.getUser()
+export default function AssignmentsPage() {
+  const router = useRouter()
+  const [assignments, setAssignments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  if (!user) return <div>Unauthorized</div>
+  const fetchAssignments = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: assignments } = await supabase
-    .from('assignments')
-    .select(`
-        id,
-        target_count,
-        assignment_type,
-        due_date,
-        is_completed,
-        created_at,
-        study_sets (title),
-        profiles:student_id (email, nickname)
-    `)
-    .eq('teacher_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(50)
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
+    const { data } = await supabase
+      .from('assignments')
+      .select(`
+          id,
+          target_count,
+          assignment_type,
+          due_date,
+          is_completed,
+          created_at,
+          study_sets (title),
+          profiles:student_id (email, nickname)
+      `)
+      .eq('teacher_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    setAssignments(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchAssignments()
+
+    // Set up realtime subscription to refresh when assignments change
+    const supabase = createClient()
+    const channel = supabase
+      .channel('assignments-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assignments' }, () => {
+        fetchAssignments()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -47,17 +79,24 @@ export default async function AssignmentsPage() {
                       <th className="px-4 py-3">Goal</th>
                       <th className="px-4 py-3">Due Date</th>
                       <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
               </thead>
               <tbody className="divide-y">
-                  {assignments?.length === 0 ? (
+                  {loading ? (
                       <tr>
-                          <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                          <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                              Loading...
+                          </td>
+                      </tr>
+                  ) : assignments.length === 0 ? (
+                      <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                               No assignments found. Create one to get started.
                           </td>
                       </tr>
                   ) : (
-                      assignments?.map((item: any) => (
+                      assignments.map((item: any) => (
                           <tr key={item.id} className="bg-background hover:bg-muted/50 transition-colors">
                               <td className="px-4 py-3 font-medium">{item.study_sets?.title || "Unknown Set"}</td>
                               <td className="px-4 py-3">
@@ -75,10 +114,30 @@ export default async function AssignmentsPage() {
                                   ) : (
                                       <Badge variant="outline">Pending</Badge>
                                   )}
-                                  {/* Late Logic can be added here */}
-                                  {!item.is_completed && new Date(item.due_date) < new Date() && (
+                                  {!item.is_completed && item.due_date && new Date(item.due_date) < new Date() && (
                                       <Badge variant="destructive" className="ml-2">Overdue</Badge>
                                   )}
+                              </td>
+                              <td className="px-4 py-3">
+                                  <div className="flex justify-end gap-1">
+                                      <EditAssignmentDialog
+                                          assignment={{
+                                              id: item.id,
+                                              target_count: item.target_count,
+                                              due_date: item.due_date,
+                                              assignment_type: item.assignment_type,
+                                              student_name: item.profiles?.nickname || item.profiles?.email || 'Unknown',
+                                              study_set_title: item.study_sets?.title || 'Untitled'
+                                          }}
+                                          onEditSuccess={fetchAssignments}
+                                      />
+                                      <DeleteAssignmentButton
+                                          assignmentId={item.id}
+                                          studentName={item.profiles?.nickname || item.profiles?.email || 'Unknown'}
+                                          studySetTitle={item.study_sets?.title || 'Untitled'}
+                                          onDeleteSuccess={fetchAssignments}
+                                      />
+                                  </div>
                               </td>
                           </tr>
                       ))

@@ -138,6 +138,7 @@ export default function SpriteCreatorPage() {
   const [nickname, setNickname] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isCheckingProfile, setIsCheckingProfile] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [existingSpriteUrl, setExistingSpriteUrl] = useState<string | null>(null);
@@ -147,30 +148,36 @@ export default function SpriteCreatorPage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        console.log('👤 Fetching profile for user:', user.id);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('sprite_url, nickname')
-          .eq('id', user.id)
-          .single();
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          console.log('👤 Fetching profile for user:', user.id);
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('sprite_url, nickname')
+            .eq('id', user.id)
+            .single();
 
-        if (error) {
-          console.error('❌ Profile fetch error:', error);
-          return;
+          if (error) {
+            console.error('❌ Profile fetch error:', error);
+            return;
+          }
+
+          console.log('📦 Profile data:', data);
+
+          if (data?.sprite_url) {
+            console.log('🎨 Loading sprite from URL:', data.sprite_url);
+            setExistingSpriteUrl(data.sprite_url);
+            setGeneratedImageUrl(data.sprite_url); // 초기 로드 시 바로 애니메이션 표시
+            if (data.nickname) setNickname(data.nickname);
+          } else {
+            console.log('ℹ️ No sprite_url found in profile');
+          }
         }
-
-        console.log('📦 Profile data:', data);
-
-        if (data?.sprite_url) {
-          console.log('🎨 Loading sprite from URL:', data.sprite_url);
-          setExistingSpriteUrl(data.sprite_url);
-          setGeneratedImageUrl(data.sprite_url); // 초기 로드 시 바로 애니메이션 표시
-          if (data.nickname) setNickname(data.nickname);
-        } else {
-          console.log('ℹ️ No sprite_url found in profile');
-        }
+      } catch (e) {
+        console.error("Error checking profile:", e);
+      } finally {
+        setIsCheckingProfile(false);
       }
     };
     fetchProfile();
@@ -345,6 +352,20 @@ export default function SpriteCreatorPage() {
           </form>
         </CardContent>
       </Card>
+
+      <AlertDialog open={isCheckingProfile}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              Checking Profile...
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              We are checking if you have an existing character sprite. Please wait a moment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={showWarning} onOpenChange={setShowWarning}>
         <AlertDialogContent>

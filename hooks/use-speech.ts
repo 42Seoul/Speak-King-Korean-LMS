@@ -47,6 +47,12 @@ export const useSpeechToText = () => {
     }
 
     recognition.onresult = (event: any) => {
+      // Guard: Ignore stale events when not actively listening
+      if (!isListeningRef.current) {
+        console.warn('[STT] Ignoring stale onresult - not listening')
+        return
+      }
+
       let sessionFinal = ""
       let sessionInterim = ""
 
@@ -58,28 +64,51 @@ export const useSpeechToText = () => {
         }
       }
 
+      console.log('[STT onresult]', {
+        isListening: isListeningRef.current,
+        accumulated: accumulatedRef.current,
+        sessionFinal,
+        sessionInterim,
+        eventLength: event.results.length,
+        timestamp: Date.now()
+      })
+
       currentSessionFinalRef.current = sessionFinal
       setTranscript(accumulatedRef.current + sessionFinal)
       setInterimTranscript(sessionInterim)
     }
 
     recognition.onerror = (event: any) => {
-      if (event.error === 'no-speech') return 
-      
+      if (event.error === 'no-speech') return
+
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           setError("permission_denied")
           setStatus("error")
-          isListeningRef.current = false 
+          isListeningRef.current = false
           return
       }
+
+      // Log unexpected errors for debugging
+      console.error('[STT error]', {
+        error: event.error,
+        message: event.message,
+        timestamp: Date.now()
+      })
     }
 
     recognition.onend = () => {
+      console.log('[STT onend]', {
+        isListening: isListeningRef.current,
+        accumulated: accumulatedRef.current,
+        currentSession: currentSessionFinalRef.current,
+        timestamp: Date.now()
+      })
+
       if (isListeningRef.current) {
         // Accumulate the finalized text from the session that just ended
         accumulatedRef.current += currentSessionFinalRef.current
         currentSessionFinalRef.current = ""
-        
+
         try {
             recognition.start()
         } catch (e) {
@@ -123,16 +152,34 @@ export const useSpeechToText = () => {
   }, [])
 
   const resetTranscript = useCallback(() => {
+    console.log('[STT reset] Before', {
+      transcript,
+      interimTranscript,
+      accumulated: accumulatedRef.current,
+      currentSession: currentSessionFinalRef.current,
+      isListening: isListeningRef.current
+    })
+
+    // Critical: Stop listening FIRST to prevent race conditions
+    isListeningRef.current = false
+
+    // Clear React state
     setTranscript("")
     setInterimTranscript("")
+
+    // Clear refs
     accumulatedRef.current = ""
     currentSessionFinalRef.current = ""
-    
+
     // Force abort to clear browser buffer (Issue 2 fix)
     if (recognitionRef.current) {
         recognitionRef.current.abort()
     }
-  }, [])
+
+    setStatus("idle")
+
+    console.log('[STT reset] After - abort called')
+  }, [transcript, interimTranscript])
 
   return {
     status,
