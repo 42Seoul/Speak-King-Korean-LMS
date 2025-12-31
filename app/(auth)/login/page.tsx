@@ -9,10 +9,13 @@ export default function LoginPage() {
   const supabase = createClient()
 
   const handleLogin = async () => {
+    // Use environment variable if available, fallback to location.origin for local dev
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? location.origin : '')
+
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${location.origin}/auth/callback`,
+        redirectTo: `${siteUrl}/auth/callback`,
       },
     })
   }
