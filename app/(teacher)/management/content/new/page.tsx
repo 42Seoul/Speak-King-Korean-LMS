@@ -178,8 +178,8 @@ export default function CreateContentPage() {
       }))
 
       // 2. Insert into DB
-      const { error } = await supabase
-        .from('study_sets')
+      const { error } = await (supabase
+        .from('study_sets') as any)
         .insert({
           owner_id: user.id,
           title,
@@ -189,7 +189,7 @@ export default function CreateContentPage() {
           is_public: visibility === 'public',
           targeted_students: visibility === 'targeted' ? targetedStudents : null,
           content: finalItems
-        } as any)
+        })
 
       if (error) throw error
 

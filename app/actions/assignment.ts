@@ -224,9 +224,8 @@ export async function updateAssignment(id: string, data: UpdateAssignmentData) {
   const isCompleted = currentProgress >= finalTargetCount
 
   // 5. Update assignment
-  // @ts-ignore - Supabase type inference issue with assignments table
-  const { error } = await supabase
-    .from('assignments')
+  const { error } = await (supabase
+    .from('assignments') as any)
     .update({
       target_count: finalTargetCount,
       due_date: data.due_date,

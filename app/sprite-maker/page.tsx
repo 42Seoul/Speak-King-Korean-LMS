@@ -61,13 +61,13 @@ const SpriteAnimator = ({ imageUrl, nickname }: { imageUrl: string, nickname: st
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const keyMap = { ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up' };
+      const keyMap: Record<string, 'down' | 'left' | 'right' | 'up'> = { ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up' };
       const newDirection = keyMap[e.key as keyof typeof keyMap];
-      
+
       if (newDirection) {
         // 방향키 입력 시 브라우저 스크롤 방지
         e.preventDefault();
-        
+
         if (!pressedKeysRef.current[e.key]) {
           pressedKeysRef.current[e.key] = true;
           setDirection(newDirection);
@@ -153,8 +153,8 @@ export default function SpriteCreatorPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           console.log('👤 Fetching profile for user:', user.id);
-          const { data, error } = await supabase
-            .from('profiles')
+          const { data, error } = await (supabase
+            .from('profiles') as any)
             .select('sprite_url, nickname')
             .eq('id', user.id)
             .single();
@@ -261,8 +261,8 @@ export default function SpriteCreatorPage() {
         console.log("💾 Updating profile for user:", user.id);
         console.log("💾 Data to update:", { sprite_url: targetSpriteUrl, nickname: nickname });
 
-        const { data: updatedData, error: updateError } = await supabase
-          .from('profiles')
+        const { data: updatedData, error: updateError } = await (supabase
+          .from('profiles') as any)
           .update({ sprite_url: targetSpriteUrl, nickname: nickname }) // 닉네임도 함께 업데이트
           .eq('id', user.id)
           .select();

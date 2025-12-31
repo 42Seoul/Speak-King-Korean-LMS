@@ -68,7 +68,8 @@ export function AiContentGenerator({ onImport }: AiContentGeneratorProps) {
   const [processing, setProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [results, setResults] = useState<ProcessedResult[]>([])
-  
+  const [testing, setTesting] = useState(false)
+
   const [playingAudioId, setPlayingAudioId] = useState<number | null>(null)
 
   // Load voices on mount

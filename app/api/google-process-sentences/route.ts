@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI, SchemaType } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 
 // Initialize Gemini AI client
 const getGeminiClient = () => {
@@ -61,7 +61,7 @@ async function asyncPool<T>(poolLimit: number, array: any[], iteratorFn: (item: 
     ret.push(p);
 
     if (poolLimit <= array.length) {
-      const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+      const e: Promise<any> = p.then(() => executing.splice(executing.indexOf(e), 1));
       executing.push(e);
       if (executing.length >= poolLimit) {
         await Promise.race(executing);
