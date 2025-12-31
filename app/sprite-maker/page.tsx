@@ -22,7 +22,8 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { createClient } from "@/lib/supabase/client"
 
-const API_BASE_URL = '/api/python'
+// Use environment variable for production (Railway), fallback to local dev server
+const API_BASE_URL = process.env.NEXT_PUBLIC_SPRITE_API_URL || 'http://localhost:8000'
 
 // ============== 애니메이션 테스트 컴포넌트 ==============
 const SpriteAnimator = ({ imageUrl, nickname }: { imageUrl: string, nickname: string }) => {

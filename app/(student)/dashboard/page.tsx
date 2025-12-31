@@ -30,11 +30,11 @@ export default async function DashboardPage() {
     redirect('/management/dashboard')
   }
 
-  // Fetch study sets (public or owned by user)
+  // Fetch study sets (public, owned by user, or assigned to user)
   const { data: rawStudySets } = await supabase
     .from('study_sets')
     .select('*')
-    .or(`is_public.eq.true,owner_id.eq.${user.id}`)
+    .or(`is_public.eq.true,owner_id.eq.${user.id},targeted_students.cs.{${user.id}}`)
     .order('created_at', { ascending: false })
     
   const studySets = rawStudySets as any[]

@@ -35,14 +35,16 @@ export default async function EditPage({ params }: EditPageProps) {
   }
 
   return (
-    <EditContentForm 
-        studySetId={studySet.id} 
+    <EditContentForm
+        studySetId={studySet.id}
         initialData={{
             title: studySet.title,
             description: studySet.description,
             target_repeat: studySet.target_repeat,
-            content: studySet.content
-        }} 
+            content: studySet.content,
+            is_public: studySet.is_public,
+            targeted_students: studySet.targeted_students
+        }}
     />
   )
 }

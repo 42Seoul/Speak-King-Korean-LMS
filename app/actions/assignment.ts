@@ -25,6 +25,46 @@ export async function createAssignments(data: AssignmentData) {
       throw new Error("Only teachers can create assignments")
   }
 
+  // Verify study set exists and teacher owns it
+  const { data: studySet, error: studySetError } = await supabase
+    .from('study_sets')
+    .select('owner_id, is_public, targeted_students')
+    .eq('id', data.study_set_id)
+    .single()
+
+  if (studySetError || !studySet) {
+    throw new Error("Study set not found")
+  }
+
+  if ((studySet as any).owner_id !== user.id) {
+    throw new Error("You can only create assignments for your own study sets")
+  }
+
+  // Verify each student has access to the study set
+  const studySetData = studySet as any
+  const unauthorizedStudents: string[] = []
+
+  for (const studentId of data.student_ids) {
+    const hasAccess =
+      studySetData.is_public ||
+      (studySetData.targeted_students && studySetData.targeted_students.includes(studentId))
+
+    if (!hasAccess) {
+      unauthorizedStudents.push(studentId)
+    }
+  }
+
+  if (unauthorizedStudents.length > 0) {
+    // Get student emails for better error message
+    const { data: students } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .in('id', unauthorizedStudents)
+
+    const studentEmails = students?.map((s: any) => s.email || s.id).join(', ') || unauthorizedStudents.join(', ')
+    throw new Error(`These students don't have access to this study set: ${studentEmails}`)
+  }
+
   // 1. Fetch current progress for these students on this study set
   const { data: progressList } = await supabase
     .from('user_study_progress')

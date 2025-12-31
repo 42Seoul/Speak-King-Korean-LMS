@@ -119,6 +119,43 @@ async function translateText(text: string): Promise<string> {
   return '';
 }
 
+// Convert PCM to WAV format by adding WAV header
+function pcmToWav(base64Pcm: string, sampleRate: number = 24000, numChannels: number = 1, bitsPerSample: number = 16): string {
+  // Decode base64 PCM data
+  const pcmData = Buffer.from(base64Pcm, 'base64');
+  const dataLength = pcmData.length;
+
+  // Create WAV header (44 bytes)
+  const header = Buffer.alloc(44);
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+
+  // RIFF chunk descriptor
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataLength, 4); // File size - 8
+  header.write('WAVE', 8);
+
+  // fmt sub-chunk
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+  header.writeUInt16LE(1, 20); // AudioFormat (1 for PCM)
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+
+  // data sub-chunk
+  header.write('data', 36);
+  header.writeUInt32LE(dataLength, 40);
+
+  // Combine header and PCM data
+  const wavBuffer = Buffer.concat([header, pcmData]);
+
+  // Return as base64
+  return wavBuffer.toString('base64');
+}
+
 async function generateAudioWithGemini(text: string, options: VoiceOptions): Promise<string> {
   const ai = getGeminiClient();
 
@@ -143,7 +180,9 @@ async function generateAudioWithGemini(text: string, options: VoiceOptions): Pro
       ],
       config: {
         responseModalities: ["AUDIO"],
-        // responseMimeType is NOT supported for this model in generateContent
+        // Note: Gemini TTS always returns PCM audio (24kHz, mono, 16-bit)
+        // There is NO way to request MP3 or other formats via API configuration
+        // We must convert PCM to WAV on the server side
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: {
@@ -154,23 +193,118 @@ async function generateAudioWithGemini(text: string, options: VoiceOptions): Pro
       }
     });
 
+    // Method 1: Try to find audio in candidates.content.parts (most common)
     const candidate = response.candidates?.[0];
-    const audioPart = candidate?.content?.parts?.find(p => p.inlineData && p.inlineData.mimeType?.startsWith('audio'));
-    
-    if (audioPart?.inlineData?.data) {
-      return audioPart.inlineData.data;
+    if (candidate?.content?.parts) {
+      for (const part of candidate.content.parts) {
+        if (part.inlineData?.mimeType?.startsWith('audio') && part.inlineData?.data) {
+          const audioData = part.inlineData.data;
+          const mimeType = part.inlineData.mimeType;
+
+          console.log('✅ Audio found in candidate.content.parts');
+          console.log(`   - MIME Type: ${mimeType}`);
+          console.log(`   - Data size: ${audioData.length} characters (base64)`);
+          console.log(`   - Preview: ${audioData.substring(0, 50)}...`);
+          console.log('🔄 Converting PCM to WAV...');
+
+          // Convert PCM to WAV format
+          const wavBase64 = pcmToWav(audioData);
+          console.log(`✅ Conversion complete - WAV size: ${wavBase64.length} characters (base64)`);
+
+          return wavBase64;
+        }
+      }
     }
 
+    // Method 2: Check if audio is at root level (alternative response format)
     if ((response as any).audio?.data) {
-        return (response as any).audio.data;
+      const audioData = (response as any).audio.data;
+      console.log('✅ Audio found in response.audio.data');
+      console.log(`   - Data size: ${audioData.length} characters (base64)`);
+      const wavBase64 = pcmToWav(audioData);
+      return wavBase64;
     }
 
+    // Method 3: Check usageMetadata or other possible locations
+    const responseObj = response as any;
+    if (responseObj.usageMetadata?.audioMetadata?.data) {
+      const audioData = responseObj.usageMetadata.audioMetadata.data;
+      console.log('✅ Audio found in usageMetadata.audioMetadata');
+      console.log(`   - Data size: ${audioData.length} characters (base64)`);
+      const wavBase64 = pcmToWav(audioData);
+      return wavBase64;
+    }
+
+    // If we reach here, audio was not found
+    console.error('❌ No audio content found');
+    console.error('Response structure:', {
+      hasCandidates: !!response.candidates,
+      candidatesLength: response.candidates?.length,
+      hasAudio: !!(response as any).audio,
+      hasUsageMetadata: !!responseObj.usageMetadata,
+      modelVersion: (response as any).modelVersion
+    });
     throw new Error('No audio content found in Gemini TTS response');
 
   } catch (error: any) {
-    console.error(`Gemini TTS Error for voice ${geminiVoiceName}:`, error);
+    console.error(`❌ Gemini TTS Error for voice ${geminiVoiceName}:`, error);
+    if (error.message?.includes('responseMimeType')) {
+      console.log('💡 Retrying without responseMimeType...');
+      // Retry without responseMimeType if it's not supported
+      return generateAudioWithGeminiFallback(text, geminiVoiceName);
+    }
     throw error;
   }
+}
+
+// Fallback function without responseMimeType
+async function generateAudioWithGeminiFallback(text: string, geminiVoiceName: string): Promise<string> {
+  const ai = getGeminiClient();
+  const modelName = 'gemini-2.5-flash-preview-tts';
+  const userPrompt = `"${text}"`;
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: userPrompt }]
+      }
+    ],
+    config: {
+      responseModalities: ["AUDIO"],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: {
+            voiceName: geminiVoiceName
+          }
+        }
+      }
+    }
+  });
+
+  const candidate = response.candidates?.[0];
+  if (candidate?.content?.parts) {
+    for (const part of candidate.content.parts) {
+      if (part.inlineData?.data) {
+        console.log('✅ Audio found in fallback (candidate.content.parts)');
+        console.log(`   - Data size: ${part.inlineData.data.length} characters (base64)`);
+        // Convert PCM to WAV
+        return pcmToWav(part.inlineData.data);
+      }
+    }
+  }
+
+  if ((response as any).audio?.data) {
+    const audioData = (response as any).audio.data;
+    console.log('✅ Audio found in fallback (response.audio.data)');
+    console.log(`   - Data size: ${audioData.length} characters (base64)`);
+    // Convert PCM to WAV
+    return pcmToWav(audioData);
+  }
+
+  console.error('❌ No audio content found even in fallback');
+  throw new Error('No audio content found even in fallback');
 }
 
 export async function POST(req: Request) {
@@ -202,7 +336,7 @@ export async function POST(req: Request) {
           corrected: text,
           translation,
           binaryData: audioBase64,
-          audioFileName: `sentence_${id}.mp3`,
+          audioFileName: `sentence_${id}.wav`,
           error: null
         };
 
@@ -223,7 +357,7 @@ export async function POST(req: Request) {
     const orderedResults = results.map((r, i) => ({
       ...r,
       id: i + 1,
-      audioFileName: `sentence_${i + 1}.mp3`
+      audioFileName: `sentence_${i + 1}.wav` // WAV format (converted from PCM)
     }));
 
     return NextResponse.json(orderedResults);

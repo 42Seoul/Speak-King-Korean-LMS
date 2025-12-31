@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -8,8 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { Trash2, Plus, Save, Loader2, CheckCircle2, FileAudio, Play } from "lucide-react"
+import { Trash2, Plus, Save, Loader2, CheckCircle2, FileAudio, Play, Users } from "lucide-react"
 import { AudioRecorder } from "@/components/teacher/audio-recorder"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface ContentItem {
   id: number
@@ -27,6 +30,8 @@ interface EditContentFormProps {
     description: string
     target_repeat: number
     content: ContentItem[]
+    is_public: boolean
+    targeted_students: string[] | null
   }
 }
 
@@ -41,6 +46,19 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
   const [description, setDescription] = useState(initialData.description || "")
   const [targetRepeat, setTargetRepeat] = useState(initialData.target_repeat || 10)
   const [items, setItems] = useState<ContentItem[]>(initialData.content || [])
+
+  // Visibility & Target Students State
+  const [visibility, setVisibility] = useState<'public' | 'private' | 'targeted'>(
+    initialData.is_public
+      ? 'public'
+      : (initialData.targeted_students && initialData.targeted_students.length > 0)
+        ? 'targeted'
+        : 'private'
+  )
+  const [targetedStudents, setTargetedStudents] = useState<string[]>(
+    initialData.targeted_students || []
+  )
+  const [students, setStudents] = useState<any[]>([])
 
   const handleAddItem = () => {
     setItems(prev => [
@@ -107,6 +125,20 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
     }
   };
 
+  // Fetch students list on component mount
+  useEffect(() => {
+    async function fetchStudents() {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, email, nickname')
+        .eq('role', 'student')
+        .order('nickname')
+
+      setStudents(data || [])
+    }
+    fetchStudents()
+  }, [supabase])
+
   const handleSubmit = async () => {
     // Validation: Check if text is filled and either URL or File exists
     const isValid = items.every(i => i.text && (i.audio_url || i.audioFile))
@@ -147,6 +179,8 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
           title,
           description,
           target_repeat: targetRepeat,
+          is_public: visibility === 'public',
+          targeted_students: visibility === 'targeted' ? targetedStudents : null,
           content: finalItems,
           updated_at: new Date().toISOString()
         })
@@ -193,14 +227,94 @@ export function EditContentForm({ studySetId, initialData }: EditContentFormProp
             </div>
             <div className="grid gap-2">
                 <Label htmlFor="repeat">Target Repeats</Label>
-                <Input 
-                    id="repeat" 
-                    type="number" 
+                <Input
+                    id="repeat"
+                    type="number"
                     value={targetRepeat}
                     onChange={e => setTargetRepeat(Number(e.target.value))}
                     min={1}
                 />
             </div>
+
+            {/* Visibility Settings */}
+            <div className="grid gap-2 pt-2 border-t">
+                <Label htmlFor="visibility">공개 범위</Label>
+                <Select
+                    value={visibility}
+                    onValueChange={(val: 'public' | 'private' | 'targeted') => {
+                        setVisibility(val)
+                        if (val !== 'targeted') {
+                            setTargetedStudents([])
+                        }
+                    }}
+                >
+                    <SelectTrigger id="visibility">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="public">전체 공개 - 모든 학생</SelectItem>
+                        <SelectItem value="private">비공개 - 나만 보기</SelectItem>
+                        <SelectItem value="targeted">특정 학생만</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {/* Student Selection (only for targeted visibility) */}
+            {visibility === 'targeted' && (
+                <div className="grid gap-2">
+                    <div className="flex items-center justify-between">
+                        <Label className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            학습할 학생 선택 ({targetedStudents.length}명)
+                        </Label>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                if (targetedStudents.length === students.length) {
+                                    setTargetedStudents([])
+                                } else {
+                                    setTargetedStudents(students.map(s => s.id))
+                                }
+                            }}
+                            className="h-auto p-0 text-xs"
+                        >
+                            {targetedStudents.length === students.length ? "전체 해제" : "전체 선택"}
+                        </Button>
+                    </div>
+                    <ScrollArea className="h-[180px] border rounded-md p-3">
+                        {students.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-8">
+                                학생 목록을 불러오는 중...
+                            </p>
+                        ) : (
+                            <div className="space-y-2">
+                                {students.map(student => (
+                                    <div key={student.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`student-${student.id}`}
+                                            checked={targetedStudents.includes(student.id)}
+                                            onCheckedChange={() => {
+                                                setTargetedStudents(prev =>
+                                                    prev.includes(student.id)
+                                                        ? prev.filter(id => id !== student.id)
+                                                        : [...prev, student.id]
+                                                )
+                                            }}
+                                        />
+                                        <Label
+                                            htmlFor={`student-${student.id}`}
+                                            className="font-normal text-sm cursor-pointer flex-1"
+                                        >
+                                            {student.nickname || student.email}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </ScrollArea>
+                </div>
+            )}
         </CardContent>
       </Card>
 
