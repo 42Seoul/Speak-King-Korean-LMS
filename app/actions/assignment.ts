@@ -231,7 +231,7 @@ export async function updateAssignment(id: string, data: UpdateAssignmentData) {
       due_date: data.due_date,
       assignment_type: data.assignment_type,
       is_completed: isCompleted
-    })
+    } as any)
     .eq('id', id)
 
   if (error) {
