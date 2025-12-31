@@ -75,8 +75,8 @@ export async function updateProgress(studySetId: string, stats: { spoken: number
     console.log(`   Assignments to mark as complete: ${completedAssignmentIds.length}`, completedAssignmentIds)
 
     if (completedAssignmentIds.length > 0) {
-      const { error } = await (supabase
-        .from('assignments') as any)
+      const { error } = await supabase
+        .from('assignments')
         .update({ is_completed: true })
         .in('id', completedAssignmentIds)
 

@@ -208,8 +208,9 @@ export type Database = {
           level: number | null
           nickname: string | null
           role: string | null
-          updated_at: string | null
           sprite_url: string | null
+          teacher_id: string | null
+          updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -219,8 +220,9 @@ export type Database = {
           level?: number | null
           nickname?: string | null
           role?: string | null
-          updated_at?: string | null
           sprite_url?: string | null
+          teacher_id?: string | null
+          updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -230,10 +232,19 @@ export type Database = {
           level?: number | null
           nickname?: string | null
           role?: string | null
-          updated_at?: string | null
           sprite_url?: string | null
+          teacher_id?: string | null
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       study_sets: {
         Row: {
@@ -244,6 +255,7 @@ export type Database = {
           is_public: boolean | null
           owner_id: string
           target_repeat: number | null
+          targeted_students: string[] | null
           title: string
           type: string | null
           updated_at: string | null
@@ -256,6 +268,7 @@ export type Database = {
           is_public?: boolean | null
           owner_id: string
           target_repeat?: number | null
+          targeted_students?: string[] | null
           title: string
           type?: string | null
           updated_at?: string | null
@@ -268,6 +281,7 @@ export type Database = {
           is_public?: boolean | null
           owner_id?: string
           target_repeat?: number | null
+          targeted_students?: string[] | null
           title?: string
           type?: string | null
           updated_at?: string | null

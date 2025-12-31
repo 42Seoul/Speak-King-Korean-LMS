@@ -224,8 +224,8 @@ export async function updateAssignment(id: string, data: UpdateAssignmentData) {
   const isCompleted = currentProgress >= finalTargetCount
 
   // 5. Update assignment
-  const { error } = await (supabase
-    .from('assignments') as any)
+  const { error } = await supabase
+    .from('assignments')
     .update({
       target_count: finalTargetCount,
       due_date: data.due_date,

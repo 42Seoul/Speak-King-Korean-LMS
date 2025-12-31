@@ -153,8 +153,8 @@ export default function SpriteCreatorPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           console.log('👤 Fetching profile for user:', user.id);
-          const { data, error } = await (supabase
-            .from('profiles') as any)
+          const { data, error } = await supabase
+            .from('profiles')
             .select('sprite_url, nickname')
             .eq('id', user.id)
             .single();
@@ -261,8 +261,8 @@ export default function SpriteCreatorPage() {
         console.log("💾 Updating profile for user:", user.id);
         console.log("💾 Data to update:", { sprite_url: targetSpriteUrl, nickname: nickname });
 
-        const { data: updatedData, error: updateError } = await (supabase
-          .from('profiles') as any)
+        const { data: updatedData, error: updateError } = await supabase
+          .from('profiles')
           .update({ sprite_url: targetSpriteUrl, nickname: nickname }) // 닉네임도 함께 업데이트
           .eq('id', user.id)
           .select();

@@ -68,8 +68,8 @@ export default function WorldPage() {
       console.log('👤 World: Fetching profile for user:', user.id);
 
       // 프로필 조회
-      const { data: profile, error } = await (supabase
-        .from('profiles') as any)
+      const { data: profile, error } = await supabase
+        .from('profiles')
         .select('sprite_url, nickname')
         .eq('id', user.id)
         .single();

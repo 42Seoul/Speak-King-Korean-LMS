@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import type { Json, Database } from "@/types/database.types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -178,18 +179,20 @@ export default function CreateContentPage() {
       }))
 
       // 2. Insert into DB
-      const { error } = await (supabase
-        .from('study_sets') as any)
-        .insert({
-          owner_id: user.id,
-          title,
-          description,
-          type: 'sentence', // Defaulting for MVP
-          target_repeat: targetRepeat,
-          is_public: visibility === 'public',
-          targeted_students: visibility === 'targeted' ? targetedStudents : null,
-          content: finalItems
-        })
+      const insertData: Database['public']['Tables']['study_sets']['Insert'] = {
+        owner_id: user.id,
+        title,
+        description,
+        type: 'sentence', // Defaulting for MVP
+        target_repeat: targetRepeat,
+        is_public: visibility === 'public',
+        targeted_students: visibility === 'targeted' ? targetedStudents : null,
+        content: finalItems as unknown as Json
+      }
+
+      const { error } = await supabase
+        .from('study_sets')
+        .insert(insertData)
 
       if (error) throw error
 
